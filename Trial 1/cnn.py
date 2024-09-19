@@ -17,6 +17,10 @@ from scipy import constants
 
 import matplotlib.pyplot as plt
 
+import time
+
+import multiprocessing
+
 
 def radarData(data_hdf5):
     '''
@@ -32,9 +36,9 @@ def radarDataTensor(radar_data_hdf5):
     '''
     num_frames = len(radar_data_hdf5.keys()) # for tensor creation
     frame_0_shape = radar_data_hdf5['Frame_0']['frame_data'].shape # for tensor creation
-    data_cube = torch.zeros((num_frames, frame_0_shape[2], frame_0_shape[1], frame_0_shape[0]), dtype=torch.complex64) # create tensor
+    data_cube = torch.zeros((num_frames, frame_0_shape[2], frame_0_shape[1], frame_0_shape[0]), dtype=torch.complex64) # create tensor        
     for frame in range(num_frames): # move axes into a more sensible order (frames, channels, chirps, values)
-        raw = torch.from_numpy(np.asarray(radar_data_hdf5['Frame_' + str(frame)]['frame_data']))
+        raw = torch.from_numpy(radar_data_hdf5['Frame_' + str(frame)]['frame_data'][:])
         data_cube[frame] = torch.permute(raw, (2, 1, 0))
     return data_cube
 
@@ -135,23 +139,30 @@ def generateDopplerKernel(len, guard_len):
 
 def processData(file_hdf5, crop=True):
     # initial processing
+    # timePoint("initial")
     data_cube = radarDataTensor(radarData(file_hdf5)) # create tensor
+    # timePoint("read data") #2
+
     data_cube = rangeDoppler(data_cube, torch.hann_window) # compute range doppler
+    # timePoint("range-doppler")
 
     # calculate range and velocity resolutions
     conf_hdf5 = radarConf(file_hdf5) # get config hdf5
     range_resolution = getRangeResolution(conf_hdf5) # read range res
     velocity_resolution = getVelocityResolution(conf_hdf5) # read vel res
+    # timePoint("resolutions") #3
 
 
     # restrict range to useful portion - bearing in mind that 0 is at the end
     range_max = data_cube.shape[3]
     range_start = range_max - int(1/range_resolution) # minimum range at 0.4m
     range_end = range_max - int(0.4/range_resolution) # max range at 1m
+    # timePoint("indexing") #4
     
     # generate CFAR over all frames
     data_cube = CFAR(data_cube, generateDopplerKernel(25, 11), 1e-6)
-    
+    # timePoint("CFAR")
+
     # TODO: Remove this bit
     if crop:
         data_cube = data_cube[:,:,:,range_start:range_end]
@@ -165,7 +176,7 @@ def processData(file_hdf5, crop=True):
     velocity_max = velocity_centre + int(10/velocity_resolution)
     if crop:
         data_cube = data_cube[:,:,velocity_min:velocity_max, :]
-
+    # timePoint("cropping") #5
 
 
     ### This stuff takes the maximum of over all frames for the first channel only
@@ -373,7 +384,7 @@ def runModel(model, optimiser, train_loader, val_loader, criterion, num_epochs):
     return loss_history
 
 def runTest():
-    file_path = os.fsencode("/home/rtdug/EEE4022S/Code/Trial 1/data/Experiment_2024-09-02_14-43-24_556_virtual_tap.hdf5") # path to the hdf5 file
+    file_path = os.fsencode("/home/rtdug/UCT-EEE4022S-2024/trial-2/data/Experiment_2024-09-17_11-00-31_049_virtual_tap.hdf5") # path to the hdf5 file
     file_hdf5 = h5py.File(file_path) # load the hdf5 file
 
 
@@ -404,18 +415,23 @@ def runTest():
     to_plot = torch.fliplr(to_plot)
     ax2.imshow(to_plot, interpolation='none', extent=(0.4, 0.4 + range_max, -velocity_max, velocity_max), aspect='auto')
     
+    plt.savefig("/home/rtdug/UCT-EEE4022S-2024/trial-2/figures/fig.png")
+    plt.close()
 
 
-
-    plt.show()
+def timePoint(name):
+    global prevTime
+    curTime = time.time()
+    timeDiff = curTime - prevTime
+    print(name, ": ", timeDiff*1e3, sep="")
+    prevTime = curTime
 
 def main():
-    runCnn()
+    # torch.set_default_device('cuda')
+    global prevTime
+    prevTime = time.time()
+    # runCnn()
+    runTest()
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
