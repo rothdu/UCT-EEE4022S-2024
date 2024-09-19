@@ -4,3 +4,4 @@
 .vscode
 sample-figs/*
 __pycache__
+*.DS_Store
