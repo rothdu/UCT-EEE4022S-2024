@@ -2,4 +2,5 @@
 .venv
 *.code-workspace
 .vscode
+sample-figs/*
 __pycache__
