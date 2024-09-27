@@ -62,7 +62,6 @@ class GestureDataset(Dataset):
         # some of this could be done with transforms... but I am doing it here for now
         file_path = os.path.join(self.root_dir, self.gesture_df.iloc[idx, 0]) # path to the hdf5 file
 
-        # print(file_path)
         file_hdf5 = h5py.File(file_path) # load the hdf5 file
 
         data_cube = read.radarDataTensor(file_hdf5)
@@ -108,12 +107,13 @@ def generateSplits(dataset, num_splits, portion_val):
     return splits
 
 def runCnn(model_obj, 
-           input_csv, 
-           root_dir = "data", 
-           num_splits = 3, 
-           portion_val = 0.1, 
-           num_epochs = 5, 
-           out_path = "results.csv"):
+           input_csv,
+           root_dir, 
+           out_csv,
+           num_splits, 
+           portion_val, 
+           num_epochs
+           ):
 
     dataset = GestureDataset(input_csv, root_dir)
     criterion = nn.CrossEntropyLoss()
@@ -140,8 +140,8 @@ def runCnn(model_obj,
 
             
             
-        train_loader = DataLoader(dataset, batch_size=16, sampler=train_sampler, collate_fn=collate_fn, num_workers=4)
-        val_loader = DataLoader(dataset, batch_size=16, sampler=val_sampler, collate_fn=collate_fn, num_workers=4)
+        train_loader = DataLoader(dataset, batch_size=4, sampler=train_sampler, collate_fn=collate_fn, num_workers=4)
+        val_loader = DataLoader(dataset, batch_size=4, sampler=val_sampler, collate_fn=collate_fn, num_workers=4)
 
         loss_history = runModel(model, optimiser, train_loader, val_loader, criterion, num_epochs)
 
@@ -154,7 +154,7 @@ def runCnn(model_obj,
 
         out_df = pd.concat([out_df, loss_history], axis=1)
 
-    out_df.to_csv(out_path, index = False, header=True)        
+    out_df.to_csv(out_csv, index = False, header=True)        
 
 def processStackedData(data, process):
     data_cubes, labels, nums_frames, range_res, velocity_res = data
@@ -163,7 +163,8 @@ def processStackedData(data, process):
 
     inputs = []            
     for sample in range(data_cubes.shape[0]):
-        inputs.append(process(data_cubes[sample, :nums_frames[sample], ...], range_res[sample], velocity_res[sample]))
+        inputs.append(process(data_cubes[sample, :nums_frames[sample], ...], range_res[sample], velocity_res[sample], labels[sample]))
+        # TODO: Get rid of the label part
     inputs = torch.stack(inputs)
 
     return inputs, labels
@@ -177,6 +178,7 @@ def evaluate(model, loader, criterion):
     with torch.no_grad(): # evaluating so don't produce gradients
         for data in loader:
             inputs, labels = processStackedData(data, models.cfarProcess1)
+            data = None
             # get data from dataloader
 
             outputs = model(inputs) # predict outputs
@@ -188,13 +190,17 @@ def evaluate(model, loader, criterion):
             running_loss += loss.item() # loss? not 100% sure
         
     # Return mean loss, accuracy
-    return running_loss / len(loader), correct / total
+    if len(loader) == 0:
+        return_loss = 0
+        return_acc = 0
+    else:
+        return_loss = running_loss/ len(loader)
+        return_acc = correct/total
+    return return_loss, return_acc
 
 def runModel(model, optimiser, train_loader, val_loader, criterion, num_epochs):
     columns = ('train_loss', 'val_loss', 'val_acc')
     loss_history = pd.DataFrame(columns=columns)
-    print(loss_history)
-
     iteration = 0
 
     for epoch in range(num_epochs):  # loop over the dataset multiple times
@@ -218,7 +224,7 @@ def runModel(model, optimiser, train_loader, val_loader, criterion, num_epochs):
             loss.backward()
             optimiser.step()
 
-            if iteration%25 == 0:
+            if iteration%50 == 0:
                 train_loss = loss.item()
 
                 val_loss, val_acc = evaluate(model, val_loader, criterion)
@@ -235,64 +241,25 @@ def runModel(model, optimiser, train_loader, val_loader, criterion, num_epochs):
 
     return loss_history
 
-def runTest():
-    file_path = os.fsencode("/home/rtdug/UCT-EEE4022S-2024/trial-2/data/Experiment_2024-09-17_11-00-31_049_virtual_tap.hdf5") # path to the hdf5 file
-    file_hdf5 = h5py.File(file_path) # load the hdf5 file
-
-
-    fig, (ax1, ax2) = plt.subplots(2)
-
-
-    to_plot = processData(file_hdf5)[0, 0, ...]
-    
-    velocity_resolution = getVelocityResolution(radarConf(file_hdf5))
-    velocity_max = to_plot.shape[0]//2*velocity_resolution
-    range_resolution = getRangeResolution(radarConf(file_hdf5))
-    range_max = to_plot.shape[1]*range_resolution
-
-    
-    # flip lr for plotting
-    to_plot = torch.fliplr(to_plot)
-    ax1.imshow(to_plot, interpolation='none', extent=(0, range_max, -velocity_max, velocity_max), aspect='auto')
-
-    to_plot = processData(file_hdf5, False)[0, 0, ...]
-    
-
-    velocity_resolution = getVelocityResolution(radarConf(file_hdf5))
-    velocity_max = to_plot.shape[0]//2*velocity_resolution
-    range_resolution = getRangeResolution(radarConf(file_hdf5))
-    range_max = to_plot.shape[1]*range_resolution
-
-    # flip lr for plotting
-    to_plot = torch.fliplr(to_plot)
-    ax2.imshow(to_plot, interpolation='none', extent=(0.4, 0.4 + range_max, -velocity_max, velocity_max), aspect='auto')
-    
-    plt.savefig("/home/rtdug/UCT-EEE4022S-2024/sample-figs/fig.png")
-    plt.close()
-
-def test():
-
-    num_folds = 5
-
-    folds = []
-    for fold in range(num_folds):
-        folds.append([])
-
-    test = [[]*num_folds]
-
-    print(folds)
-    print(test)
-
 def main():
     torch.set_default_device('cuda')
 
     model = models.CfarModel1
     input_csv = "gestures.csv"
     root_dir = "data"
-    num_splits = 3
-    portion_val = 0.04
-    num_epochs = 20
-    runCnn(model, input_csv, root_dir, num_splits, portion_val, num_epochs)
+    out_csv = "results.csv"
+    num_splits = 1
+    portion_val = 0.02
+    num_epochs = 15
+
+    # model = models.CfarModel1
+    # input_csv = "smallset.csv"
+    # root_dir = "data"
+    # out_csv = "na.csv"
+    # num_splits = 1
+    # portion_val = 0
+    # num_epochs = 1
+    runCnn(model, input_csv, root_dir, out_csv, num_splits, portion_val, num_epochs)
 
 if __name__ == "__main__":
     main()
