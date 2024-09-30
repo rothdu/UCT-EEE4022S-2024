@@ -20,17 +20,19 @@ def dopplerFft(data_cube, window=None):
 
 def rangeDoppler(data_cube, window=None):
     '''Get range doppler tensor for inputting data cube tensor'''
-    return dopplerFft(rangeFft(data_cube, window), window)
+    data_cube = dopplerFft(rangeFft(data_cube, window), window)
+    data_cube = torch.flip(torch.fft.fftshift(data_cube, (2,)), (3,))
+    return data_cube
 
 def todB(data_cube):
     '''Convert input torch tensor to dB'''
     return 20*torch.log10(data_cube)
 
-def cfar(data_cube, kernel, pfa=1e-6):
+def cfar(data_cube, kernel, probability_false_alarm=1e-6):
     '''Return radar CFAR output from range-doppler map'''
     # currently expects a 2d kernel
     num_training_cells = torch.sum(kernel) # number of training cells
-    alpha = num_training_cells * (torch.pow(pfa, -1/num_training_cells) -1) # threshold gain
+    alpha = num_training_cells * (torch.pow(probability_false_alarm, -1/num_training_cells) -1) # threshold gain
 
     # convert data cube to power
     data_cube = torch.pow(torch.abs(data_cube), 2)
@@ -43,11 +45,9 @@ def cfar(data_cube, kernel, pfa=1e-6):
     noise_cube = noise_cube[None, None, ...].expand(data_cube.shape) # expand across all channels and frames
 
     noise_cube = torch.fft.ifft2(torch.conj(torch.fft.fft2(noise_cube))*torch.fft.fft2(data_cube)) # do the fancy frequency domain based convolution
-    noise_cube = torch.roll(noise_cube, kernel.shape[0]//2) # Not sure I understand this step but it is apparently necessary
+    noise_cube = torch.roll(noise_cube, kernel.shape[0]//2, dims=2) # Not sure I understand this step but it is apparently necessary
 
-    data_cube = torch.where(torch.abs(data_cube).gt(torch.abs(noise_cube)*alpha), 1.0, 0) # generate CFAR for each range-doppler map in the cube
-
-    data_cube = torch.amax(data_cube, dim=(0, 1), keepdim=True) # sum CFAR across all channels and all frames
+    data_cube = torch.where(data_cube.gt(torch.abs(noise_cube)*alpha), 1.0, 0) # generate CFAR for each range-doppler map in the cube
 
     return data_cube
 
@@ -61,9 +61,23 @@ def generateDopplerKernel(len, guard_len):
 
     return kernel
 
-def microDoppler(data_cube, range_bin, n_fft=64, hop_length=None, win_length=None, range_window = torch.hann_window, doppler_window = torch.hann_window):
+def generateRangeDopplerKernel(len, guard_len):
+    '''Generate a a kernel for the range and doppler dimensions with specified length and guard length'''
+    len = 2*(len//2)+1 #  might make a kernel bigger than desired
+    guard_len = 2*(guard_len//2)+1 # might make guard kernel bigger than desired
+    unguarded_len = (len-guard_len)//2
+    kernel = torch.ones(len, len)
+    kernel[:, unguarded_len: -unguarded_len] = 0
+
+    return kernel
+
+
+
+def microDoppler(data_cube, range_bin, n_fft=64, hop_length=None, win_length=16, range_window = None, doppler_window = None):
     '''Create micro doppler spectrogram from radar data cube'''
     data_cube = rangeFft(data_cube, range_window)
-    doppler_tensor = torch.reshape(data_cube[:, 0, :, range_bin], (-1, )) # 1D doppler string of specified range bin
+    print(data_cube.shape)
+    doppler_tensor = torch.reshape(data_cube[:, 0, :, -range_bin], (-1, )) # 1D doppler string of specified range bin
+    print(doppler_tensor.shape)
     spectrogram = torch.stft(doppler_tensor, n_fft, hop_length, win_length, doppler_window) # generate spectrogram
     return spectrogram

@@ -1,0 +1,17 @@
+file_name,label
+Experiment_2024-09-17_11-07-19_506_virtual_tap.hdf5,virtual_tap
+Experiment_2024-09-17_11-20-46_538_virtual_slider_left.hdf5,virtual_slider_left
+Experiment_2024-09-17_11-52-44_326_virtual_slider_right.hdf5,virtual_slider_right
+Experiment_2024-09-17_12-12-19_157_swipe_left.hdf5,swipe_left
+Experiment_2024-09-17_15-35-02_112_swipe_right.hdf5,swipe_right
+Experiment_2024-09-17_15-43-13_543_swipe_up.hdf5,swipe_up
+Experiment_2024-09-17_15-51-36_437_swipe_down.hdf5,swipe_down
+Experiment_2024-09-17_16-56-10_560_palm_grab.hdf5,palm_grab
+Experiment_2024-09-17_17-26-04_532_palm_release.hdf5,palm_release
+Experiment_2024-09-17_17-52-21_717_virtual_knob_clockwise.hdf5,virtual_knob_clockwise
+Experiment_2024-09-17_17-58-01_695_virtual_knob_anticlockwise.hdf5,virtual_knob_anticlockwise
+Experiment_2024-09-17_18-26-42_054_pinch_out_horizontal.hdf5,pinch_out_horizontal
+Experiment_2024-09-17_18-35-28_359_pinch_out_vertical.hdf5,pinch_out_vertical
+Experiment_2024-09-17_18-15-04_948_still_hand_open.hdf5,still_hand_open
+Experiment_2024-09-17_18-11-23_644_still_hand_closed.hdf5,still_hand_closed
+Experiment_2024-09-17_18-44-02_776_empty.hdf5,empty

@@ -25,9 +25,13 @@ import readdata as read
 
 import radarprocessing as radar
 
-import cnnmodels as models
+import cnnmodels as cnns
+
+import processingmodels as processes
 
 import random
+
+
 
 class GestureDataset(Dataset):
     """Dataset of radar hand gestures"""
@@ -60,26 +64,25 @@ class GestureDataset(Dataset):
             idx = idx.tolist()
         
         # some of this could be done with transforms... but I am doing it here for now
-        file_path = os.path.join(self.root_dir, self.gesture_df.iloc[idx, 0]) # path to the hdf5 file
+        data_hdf5 = h5py.File(os.fsencode("processed_data/gestures.hdf5")) # load the hdf5 file
+        item_name = self.gesture_df.iloc[idx, 0]
 
-        file_hdf5 = h5py.File(file_path) # load the hdf5 file
+        data_cube = torch.as_tensor(data_hdf5[item_name][:], device='cpu')
 
-        data_cube = read.radarDataTensor(file_hdf5)
-
+        source_hdf5 = h5py.File(os.path.join(self.root_dir, item_name))
+        
+        
         if self.transform:
-            data_cube = self.transform(data_cube) # TODO: remove this    
-            pass # I'm not using transforms during data loading because I want to collate first and process FFTs on GPU
+            data_cube = self.transform(data_cube, source_hdf5)
 
         label = self.gesture_df.iloc[idx, 1]
         
         if self.label_transform:
-            pass # I"m not using label transforms, should already be given in the csv
+            label = self.label_transform(label)
 
-        label_idnum = torch.tensor(self.labels.index(label), device='cpu')
-        range_res = read.rangeResolution(file_hdf5)
-        velocity_res = read.velocityResolution(file_hdf5)
-
-        return data_cube, label_idnum, data_cube.shape[0], range_res, velocity_res
+        label_idnum = torch.as_tensor(self.labels.index(label), device='cpu')
+        
+        return data_cube, label_idnum
 
     def getLabels(self):
         return self.labels
@@ -115,7 +118,8 @@ def runCnn(model_obj,
            num_epochs
            ):
 
-    dataset = GestureDataset(input_csv, root_dir)
+
+    dataset = GestureDataset(input_csv, root_dir, transform=processes.cfarCrop1)
     criterion = nn.CrossEntropyLoss()
 
     splits = generateSplits(dataset, num_splits, portion_val)
@@ -130,18 +134,10 @@ def runCnn(model_obj,
         optimiser = optim.Adam(model.parameters(), lr=0.005)
         
         train_sampler = SubsetRandomSampler(train_ids)
-        val_sampler =  SubsetRandomSampler(val_ids)
-
-        def collate_fn(data):
-            data_cubes, labels, nums_frames, range_reses, velocity_reses = zip(*data)
-            data_cubes = pad_sequence(data_cubes, batch_first=True)
-            labels = torch.stack(labels)
-            return data_cubes, labels, nums_frames, range_reses, velocity_reses
-
+        val_sampler =  SubsetRandomSampler(val_ids)           
             
-            
-        train_loader = DataLoader(dataset, batch_size=4, sampler=train_sampler, collate_fn=collate_fn, num_workers=4)
-        val_loader = DataLoader(dataset, batch_size=4, sampler=val_sampler, collate_fn=collate_fn, num_workers=4)
+        train_loader = DataLoader(dataset, batch_size=16, sampler=train_sampler, num_workers=4)
+        val_loader = DataLoader(dataset, batch_size=16, sampler=val_sampler, num_workers=4)
 
         loss_history = runModel(model, optimiser, train_loader, val_loader, criterion, num_epochs)
 
@@ -156,19 +152,6 @@ def runCnn(model_obj,
 
     out_df.to_csv(out_csv, index = False, header=True)        
 
-def processStackedData(data, process):
-    data_cubes, labels, nums_frames, range_res, velocity_res = data
-    data_cubes = data_cubes.to('cuda')
-    labels = labels.to('cuda')
-
-    inputs = []            
-    for sample in range(data_cubes.shape[0]):
-        inputs.append(process(data_cubes[sample, :nums_frames[sample], ...], range_res[sample], velocity_res[sample], labels[sample]))
-        # TODO: Get rid of the label part
-    inputs = torch.stack(inputs)
-
-    return inputs, labels
-
 def evaluate(model, loader, criterion):
     model.eval()
     # initialise evaluation parameters
@@ -177,8 +160,9 @@ def evaluate(model, loader, criterion):
     running_loss = 0.0
     with torch.no_grad(): # evaluating so don't produce gradients
         for data in loader:
-            inputs, labels = processStackedData(data, models.cfarProcess1)
-            data = None
+            inputs, labels = data
+            inputs = inputs.to('cuda')
+            labels = labels.to('cuda')
             # get data from dataloader
 
             outputs = model(inputs) # predict outputs
@@ -206,14 +190,16 @@ def runModel(model, optimiser, train_loader, val_loader, criterion, num_epochs):
     for epoch in range(num_epochs):  # loop over the dataset multiple times
         print(f"Epoch: {epoch+1}")
         
+        start_time = time.time()
         for batch, data in enumerate(train_loader, 0):
-            print(f"Batch: {batch+1}", end="")
-            start_time = time.time()
-            
+            print(f"Batch: {batch+1}", end="")            
             model.train()
             
             # get the inputs; data is a list of [inputs, labels]
-            inputs, labels = processStackedData(data, models.cfarProcess1)
+            inputs, labels = data
+
+            inputs = inputs.to('cuda')
+            labels = labels.to('cuda')
 
             # zero the parameter gradients
             optimiser.zero_grad()
@@ -224,7 +210,7 @@ def runModel(model, optimiser, train_loader, val_loader, criterion, num_epochs):
             loss.backward()
             optimiser.step()
 
-            if iteration%50 == 0:
+            if iteration%100 == 0:
                 train_loss = loss.item()
 
                 val_loss, val_acc = evaluate(model, val_loader, criterion)
@@ -235,24 +221,67 @@ def runModel(model, optimiser, train_loader, val_loader, criterion, num_epochs):
         
             end_time = time.time()
             print(f" | Time: {(end_time - start_time)*1e3}")
+            start_time = time.time()
 
 
     print('Finished Split')
 
     return loss_history
 
+
+def processInputs(input_csv, root_dir, radar_process):
+    
+    processed_path = os.fsencode("processed_data/gestures.hdf5")
+
+    if os.path.exists(processed_path):
+        os.remove(processed_path)
+    
+
+    gesture_df = pd.read_csv(input_csv)
+
+    processed_hdf5 = h5py.File(processed_path, "w")
+
+
+    for index, row in gesture_df.iterrows():
+        print(f"Pre-processing item: {index}", end = "")
+        start_time = time.time()
+
+        file_name = row["file_name"]
+
+
+        unprocessed_hdf5 = h5py.File(os.path.join(root_dir, file_name))
+
+        data_cube = read.radarDataTensor(unprocessed_hdf5)
+
+        data_cube = data_cube.to('cuda')
+
+        data_cube = radar_process(data_cube, unprocessed_hdf5)
+
+        data_cube = data_cube.to('cpu')
+
+        unprocessed_hdf5.close()
+
+        processed_hdf5.create_dataset(file_name, data=data_cube)
+
+        end_time = time.time()
+        print(f" | Time: {(end_time - start_time)*1e3} | {file_name}")
+
+    processed_hdf5.close()
+
 def main():
     torch.set_default_device('cuda')
 
-    model = models.CfarModel1
+    # processInputs("gestures.csv", "data", processes.cfarProcess1)
+
+    model = cnns.CfarModel1
     input_csv = "gestures.csv"
     root_dir = "data"
     out_csv = "results.csv"
-    num_splits = 1
-    portion_val = 0.02
-    num_epochs = 15
+    num_splits = 3
+    portion_val = 0.04
+    num_epochs = 10
 
-    # model = models.CfarModel1
+    # model = cnns.CfarModel1
     # input_csv = "smallset.csv"
     # root_dir = "data"
     # out_csv = "na.csv"
@@ -260,6 +289,8 @@ def main():
     # portion_val = 0
     # num_epochs = 1
     runCnn(model, input_csv, root_dir, out_csv, num_splits, portion_val, num_epochs)
+
+
 
 if __name__ == "__main__":
     main()
