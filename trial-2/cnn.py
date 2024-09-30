@@ -271,7 +271,7 @@ def processInputs(input_csv, root_dir, radar_process):
 def main():
     torch.set_default_device('cuda')
 
-    # processInputs("gestures.csv", "data", processes.cfarProcess1)
+    processInputs("gestures.csv", "data", processes.cfarProcess1)
 
     model = cnns.CfarModel1
     input_csv = "gestures.csv"
@@ -279,7 +279,7 @@ def main():
     out_csv = "results.csv"
     num_splits = 3
     portion_val = 0.04
-    num_epochs = 10
+    num_epochs = 20
 
     # model = cnns.CfarModel1
     # input_csv = "smallset.csv"

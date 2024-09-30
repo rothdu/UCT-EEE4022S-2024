@@ -95,18 +95,21 @@ def microDopplerTest():
     file_hdf5 = h5py.File(file_path) # load the hdf5 file
 
     data_cube = read.radarDataTensor(file_hdf5)
-    num_frames_analysed = 20
-    discard_num = int((data_cube.shape[0]-num_frames_analysed)/2)
-    data_cube = data_cube[discard_num:discard_num+num_frames_analysed, ...]
+
+    data_cube = read.centreFrames(data_cube, 20)
 
     range_res = read.rangeResolution(file_hdf5)
 
     print(data_cube.shape)
 
-    spectrogram = radar.microDoppler(data_cube, range_bin= int(0.5/range_res))
+    spectrogram = radar.microDoppler(data_cube, range_bin=int(0.5/range_res))
+    spectrogram = torch.abs(spectrogram)
+    spectrogram = radar.todB(spectrogram)
 
     spectrogram = spectrogram.to('cpu')
-    spectrogram = torch.abs(spectrogram)
+
+    print(torch.max(spectrogram))
+    print(torch.min(spectrogram))
 
     fig, ax = plt.subplots()
 
