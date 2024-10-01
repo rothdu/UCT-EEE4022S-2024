@@ -59,3 +59,31 @@ def cfarCrop1(data_cube, file_hdf5):
     data_cube = data_cube[...,velocity_low:velocity_high, :]
 
     return data_cube
+
+def microDopplerProcess1(data_cube, input_hdf5):
+    
+    data_cube = read.centreFrames(data_cube, 20)
+
+    range_res = read.rangeResolution(input_hdf5)
+
+    spectrogram = radar.microDoppler(data_cube, range_bin=int(0.5/range_res), n_fft=128, win_length=32, hop_length=2)
+    # spectrogram = spectrogram[10:-10, :]
+
+
+    spectrogram = torch.abs(spectrogram)
+    spectrogram = radar.todB(spectrogram)
+
+    
+    spectrogram = spectrogram -35
+    spectrogram = spectrogram / 40
+
+    spectrogram[spectrogram < 0] = 0
+    spectrogram[spectrogram > 1] = 1
+    
+    
+
+    print()
+
+    spectrogram = spectrogram.unsqueeze(0)
+
+    return spectrogram

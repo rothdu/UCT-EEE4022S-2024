@@ -14,7 +14,7 @@ for idx, filename in enumerate(os.listdir("data/")):
 
     info_df.loc[idx, "num_frames"] = num_frames
 
-    if num_frames > 60:
-        print(filename[-30:-1], ":", num_frames)
+    if num_frames <25:
+        print(filename[35:-1], ":", num_frames)
 
 info_df.to_csv (r'gestures_info.csv', index = False, header=True)  

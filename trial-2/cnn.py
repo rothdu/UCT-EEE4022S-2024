@@ -115,11 +115,12 @@ def runCnn(model_obj,
            out_csv,
            num_splits, 
            portion_val, 
-           num_epochs
+           num_epochs, 
+           learning_rate
            ):
 
 
-    dataset = GestureDataset(input_csv, root_dir, transform=processes.cfarCrop1)
+    dataset = GestureDataset(input_csv, root_dir, transform=None)
     criterion = nn.CrossEntropyLoss()
 
     splits = generateSplits(dataset, num_splits, portion_val)
@@ -131,7 +132,7 @@ def runCnn(model_obj,
         print(f"Split: {split+1}")
         
         model = model_obj(1, len(dataset.getLabels()))
-        optimiser = optim.Adam(model.parameters(), lr=0.005)
+        optimiser = optim.Adam(model.parameters(), lr=learning_rate)
         
         train_sampler = SubsetRandomSampler(train_ids)
         val_sampler =  SubsetRandomSampler(val_ids)           
@@ -197,7 +198,6 @@ def runModel(model, optimiser, train_loader, val_loader, criterion, num_epochs):
             
             # get the inputs; data is a list of [inputs, labels]
             inputs, labels = data
-
             inputs = inputs.to('cuda')
             labels = labels.to('cuda')
 
@@ -229,7 +229,7 @@ def runModel(model, optimiser, train_loader, val_loader, criterion, num_epochs):
     return loss_history
 
 
-def processInputs(input_csv, root_dir, radar_process):
+def processInputs(input_csv, root_dir, radar_process, plot=False):
     
     processed_path = os.fsencode("processed_data/gestures.hdf5")
 
@@ -259,6 +259,15 @@ def processInputs(input_csv, root_dir, radar_process):
 
         data_cube = data_cube.to('cpu')
 
+        if plot:
+            fig, ax = plt.subplots()
+
+            ax.imshow(data_cube[0], interpolation='none')
+
+            plt.savefig(f"/home/rtdug/UCT-EEE4022S-2024/sample-figs/{file_name}.png")
+
+            plt.close()
+
         unprocessed_hdf5.close()
 
         processed_hdf5.create_dataset(file_name, data=data_cube)
@@ -271,24 +280,20 @@ def processInputs(input_csv, root_dir, radar_process):
 def main():
     torch.set_default_device('cuda')
 
-    processInputs("gestures.csv", "data", processes.cfarProcess1)
+    # NOTE: The crop transform also needs to be dealt with / passed...
 
-    model = cnns.CfarModel1
-    input_csv = "gestures.csv"
+    model = cnns.microDopplerModel2
+    process = processes.microDopplerProcess1
+    input_csv = "smallset.csv"
     root_dir = "data"
     out_csv = "results.csv"
-    num_splits = 3
+    num_splits = 2
     portion_val = 0.04
-    num_epochs = 20
+    num_epochs = 50
+    learning_rate = 0.0005
 
-    # model = cnns.CfarModel1
-    # input_csv = "smallset.csv"
-    # root_dir = "data"
-    # out_csv = "na.csv"
-    # num_splits = 1
-    # portion_val = 0
-    # num_epochs = 1
-    runCnn(model, input_csv, root_dir, out_csv, num_splits, portion_val, num_epochs)
+    processInputs(input_csv, root_dir, process, plot=True)
+    # runCnn(model, input_csv, root_dir, out_csv, num_splits, portion_val, num_epochs, learning_rate)
 
 
 

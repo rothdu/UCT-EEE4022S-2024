@@ -73,11 +73,9 @@ def generateRangeDopplerKernel(len, guard_len):
 
 
 
-def microDoppler(data_cube, range_bin, n_fft=64, hop_length=None, win_length=16, range_window = None, doppler_window = None):
+def microDoppler(data_cube, range_bin, n_fft=64, hop_length=None, win_length=16, range_window = torch.hann_window, doppler_window = torch.hann_window):
     '''Create micro doppler spectrogram from radar data cube'''
     data_cube = rangeFft(data_cube, range_window)
-    print(data_cube.shape)
     doppler_tensor = torch.reshape(data_cube[:, 0, :, -range_bin], (-1, )) # 1D doppler string of specified range bin
-    print(doppler_tensor.shape)
-    spectrogram = torch.stft(doppler_tensor, n_fft, hop_length, win_length, doppler_window) # generate spectrogram
+    spectrogram = torch.stft(doppler_tensor, n_fft, hop_length, win_length, doppler_window(win_length)) # generate spectrogram
     return spectrogram
