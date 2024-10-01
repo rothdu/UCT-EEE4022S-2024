@@ -284,16 +284,16 @@ def main():
 
     model = cnns.microDopplerModel2
     process = processes.microDopplerProcess1
-    input_csv = "smallset.csv"
+    input_csv = "gestures_ge20.csv"
     root_dir = "data"
     out_csv = "results.csv"
     num_splits = 2
     portion_val = 0.04
-    num_epochs = 50
+    num_epochs = 40
     learning_rate = 0.0005
 
-    processInputs(input_csv, root_dir, process, plot=True)
-    # runCnn(model, input_csv, root_dir, out_csv, num_splits, portion_val, num_epochs, learning_rate)
+    processInputs(input_csv, root_dir, process)
+    runCnn(model, input_csv, root_dir, out_csv, num_splits, portion_val, num_epochs, learning_rate)
 
 
 

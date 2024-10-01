@@ -62,7 +62,8 @@ def cfarCrop1(data_cube, file_hdf5):
 
 def microDopplerProcess1(data_cube, input_hdf5):
     
-    data_cube = read.centreFrames(data_cube, 20)
+    # data_cube = read.centreFrames(data_cube, 20)
+    data_cube = data_cube[:20, ...]
 
     range_res = read.rangeResolution(input_hdf5)
 
