@@ -112,6 +112,7 @@ def generateSplits(dataset, num_splits, portion_val):
 def runCnn(model_obj, 
            input_csv,
            root_dir, 
+           transform,
            out_csv,
            num_splits, 
            portion_val, 
@@ -120,7 +121,7 @@ def runCnn(model_obj,
            ):
 
 
-    dataset = GestureDataset(input_csv, root_dir, transform=None)
+    dataset = GestureDataset(input_csv, root_dir, transform=transform)
     criterion = nn.CrossEntropyLoss()
 
     splits = generateSplits(dataset, num_splits, portion_val)
@@ -210,7 +211,7 @@ def runModel(model, optimiser, train_loader, val_loader, criterion, num_epochs):
             loss.backward()
             optimiser.step()
 
-            if iteration%100 == 0:
+            if iteration%50 == 0:
                 train_loss = loss.item()
 
                 val_loss, val_acc = evaluate(model, val_loader, criterion)
@@ -282,18 +283,26 @@ def main():
 
     # NOTE: The crop transform also needs to be dealt with / passed...
 
-    model = cnns.microDopplerModel2
-    process = processes.microDopplerProcess1
+    model = cnns.CfarModel1
+    process = processes.cfarProcess2
     input_csv = "gestures_ge20.csv"
+    # input_csv = "smallset.csv"
     root_dir = "data"
+    transform = processes.cfarCrop1
     out_csv = "results.csv"
-    num_splits = 2
+    num_splits = 3
     portion_val = 0.04
-    num_epochs = 40
+    num_epochs = 30
     learning_rate = 0.0005
+    
 
+    # NOTE: Check the max pooling on the md model
+
+    #TODOTODOTODO:  Check all the  todos lol
     processInputs(input_csv, root_dir, process)
-    runCnn(model, input_csv, root_dir, out_csv, num_splits, portion_val, num_epochs, learning_rate)
+    runCnn(model, input_csv, root_dir, transform, out_csv, num_splits, portion_val, num_epochs, learning_rate)
+
+    # processInputs(input_csv, root_dir, process, True)
 
 
 

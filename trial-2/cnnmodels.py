@@ -196,15 +196,15 @@ class microDopplerModel2(nn.Module):
 
         self.conv3 = nn.Conv2d(16, 32, 5)
         self.relu3 = nn.ReLU()
-        self.maxpool3 = nn.MaxPool2d(2, 2)
+        self.maxpool3 = nn.MaxPool2d(4, 1)
 
         self.conv4 = nn.Conv2d(32, 64, 5)
         self.relu4 = nn.ReLU()
-        self.maxpool4 = nn.MaxPool2d(1, 2)
+        self.maxpool4 = nn.MaxPool2d(4, 1)
 
         self.conv5 = nn.Conv2d(64, 128, 5)
         self.relu5 = nn.ReLU()
-        self.maxpool5 = nn.MaxPool2d(1, 2)
+        self.maxpool5 = nn.MaxPool2d(4, 1)
 
 
         self.fc1 = nn.LazyLinear(256)
