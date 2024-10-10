@@ -110,10 +110,12 @@ def generateSplits(dataset, num_splits, portion_val):
     return splits
 
 def runCnn(model_obj, 
+           num_channels, 
            input_csv,
            root_dir, 
            transform,
            out_csv,
+           confusion_csv,
            num_splits, 
            portion_val, 
            num_epochs, 
@@ -126,13 +128,13 @@ def runCnn(model_obj,
 
     splits = generateSplits(dataset, num_splits, portion_val)
 
-    out_df = pd.DataFrame()
-
+    results_df = pd.DataFrame()
+    confusion_df = pd.DataFrame(0, index = dataset.getLabels(), columns = dataset.getLabels())
 
     for split, (train_ids, val_ids) in enumerate(splits):
         print(f"Split: {split+1}")
         
-        model = model_obj(1, len(dataset.getLabels()))
+        model = model_obj(num_channels, len(dataset.getLabels()))
         optimiser = optim.Adam(model.parameters(), lr=learning_rate)
         
         train_sampler = SubsetRandomSampler(train_ids)
@@ -143,6 +145,10 @@ def runCnn(model_obj,
 
         loss_history = runModel(model, optimiser, train_loader, val_loader, criterion, num_epochs)
 
+        
+
+        confusion(model, val_loader, confusion_df)
+
         new_column_names = {
             "train_loss": f"train_loss_{split+1}",
             "val_loss": f"val_loss_{split+1}",
@@ -150,9 +156,12 @@ def runCnn(model_obj,
         }
         loss_history = loss_history.rename(columns = new_column_names)
 
-        out_df = pd.concat([out_df, loss_history], axis=1)
+        results_df = pd.concat([results_df, loss_history], axis=1)
 
-    out_df.to_csv(out_csv, index = False, header=True)        
+        
+
+    results_df.to_csv(out_csv, index = False, header=True)     
+    confusion_df.to_csv(confusion_csv, index=True, header=True)
 
 def evaluate(model, loader, criterion):
     model.eval()
@@ -184,6 +193,22 @@ def evaluate(model, loader, criterion):
         return_acc = correct/total
     return return_loss, return_acc
 
+def confusion(model, loader, confusion_df):    
+
+    with torch.no_grad():
+        for data in loader:
+            inputs, labels = data
+            inputs = inputs.to('cuda')
+            labels = labels.to('cuda')
+
+            outputs = model(inputs)
+            _, predicted = torch.max(outputs.data, 1)
+
+            for i in range(len(labels)):
+                confusion_df.iat[int(labels[i]), int(predicted[i])] += 1
+
+
+
 def runModel(model, optimiser, train_loader, val_loader, criterion, num_epochs):
     columns = ('train_loss', 'val_loss', 'val_acc')
     loss_history = pd.DataFrame(columns=columns)
@@ -194,7 +219,9 @@ def runModel(model, optimiser, train_loader, val_loader, criterion, num_epochs):
         
         start_time = time.time()
         for batch, data in enumerate(train_loader, 0):
-            print(f"Batch: {batch+1}", end="")            
+            print_iter = 50
+            if iteration%print_iter == 0:
+                print(f"Batch: {batch+1}", end="")            
             model.train()
             
             # get the inputs; data is a list of [inputs, labels]
@@ -221,7 +248,8 @@ def runModel(model, optimiser, train_loader, val_loader, criterion, num_epochs):
             iteration+=1
         
             end_time = time.time()
-            print(f" | Time: {(end_time - start_time)*1e3}")
+            if iteration%print_iter == 0:
+                print(f" | Time: {(end_time - start_time)*1e3}")
             start_time = time.time()
 
 
@@ -261,9 +289,13 @@ def processInputs(input_csv, root_dir, radar_process, plot=False):
         data_cube = data_cube.to('cpu')
 
         if plot:
-            fig, ax = plt.subplots()
 
-            ax.imshow(data_cube[0], interpolation='none')
+            fig, ax = plt.subplots()
+            if len(data_cube.shape) >2:
+                to_plot = data_cube[:,4, ...]
+            else:
+                to_plot = data_cube
+            ax.imshow(to_plot[0], interpolation='none')
 
             plt.savefig(f"/home/rtdug/UCT-EEE4022S-2024/sample-figs/{file_name}.png")
 
@@ -280,30 +312,53 @@ def processInputs(input_csv, root_dir, radar_process, plot=False):
 
 def main():
     torch.set_default_device('cuda')
-
-    # NOTE: The crop transform also needs to be dealt with / passed...
-
-    model = cnns.CfarModel1
-    process = processes.cfarProcess2
     input_csv = "gestures_ge20.csv"
-    # input_csv = "smallset.csv"
     root_dir = "data"
-    transform = processes.cfarCrop1
-    out_csv = "results.csv"
-    num_splits = 3
-    portion_val = 0.04
-    num_epochs = 30
-    learning_rate = 0.0005
-    
+    num_splits = 5
+    portion_val = 0.2
+    num_epochs = 200
+    learning_rate = 0.0002
+    num_channels = 1
+    transform = processes.cfarCrop2
 
-    # NOTE: Check the max pooling on the md model
 
     #TODOTODOTODO:  Check all the  todos lol
+    # NOTE: Check the max pooling on the md model
+
+    out_csv = "results_cfar_2d_clutter.csv"
+    confusion_csv = "confusion_cfar_2d_clutter.csv"
+    model = cnns.CfarModel1
+    process = processes.cfarProcess3
     processInputs(input_csv, root_dir, process)
-    runCnn(model, input_csv, root_dir, transform, out_csv, num_splits, portion_val, num_epochs, learning_rate)
+    runCnn(model, num_channels, input_csv, root_dir, transform, out_csv, confusion_csv, num_splits, portion_val, num_epochs, learning_rate)
 
-    # processInputs(input_csv, root_dir, process, True)
+    out_csv = "results_cfar_3d_clutter.csv"
+    confusion_csv = "confusion_cfar_3d_clutter.csv"
+    model = cnns.CfarModel3
+    process = processes.cfarProcess4
+    processInputs(input_csv, root_dir, process)
+    runCnn(model, num_channels, input_csv, root_dir, transform, out_csv, confusion_csv, num_splits, portion_val, num_epochs, learning_rate)
 
+    out_csv = "results_cfar_3d_noclutter.csv"
+    confusion_csv = "confusion_cfar_3d_noclutter.csv"
+    model = cnns.CfarModel3
+    process = processes.cfarProcess5
+    processInputs(input_csv, root_dir, process)
+    runCnn(model, num_channels, input_csv, root_dir, transform, out_csv, confusion_csv, num_splits, portion_val, num_epochs, learning_rate)
+
+    out_csv = "results_rd_3d_clutter.csv"
+    confusion_csv = "confusion_rd_clutter.csv"
+    model = cnns.CfarModel3
+    process = processes.rangeDopplerProcess1
+    processInputs(input_csv, root_dir, process)
+    runCnn(model, num_channels, input_csv, root_dir, transform, out_csv, confusion_csv, num_splits, portion_val, num_epochs, learning_rate)
+
+    out_csv = "results_rd_3d_noclutter.csv"
+    confusion_csv = "confusion_rd_3d_noclutter.csv"
+    model = cnns.CfarModel3
+    process = processes.rangeDopplerProcess2
+    processInputs(input_csv, root_dir, process)
+    runCnn(model, num_channels, input_csv, root_dir, transform, out_csv, confusion_csv, num_splits, portion_val, num_epochs, learning_rate)
 
 
 if __name__ == "__main__":

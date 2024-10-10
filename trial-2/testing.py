@@ -1,5 +1,6 @@
 import readdata as read
 import radarprocessing as radar
+import processingmodels as processes
 
 import matplotlib.pyplot as plt
 import h5py
@@ -52,7 +53,7 @@ def cfarTestProcess(data_cube, range_res, velocity_res, label): # TODO: Get rid 
     return data_cube
 
 def runTest():
-    file_path = os.fsencode("/home/rtdug/UCT-EEE4022S-2024/trial-2/data/Experiment_2024-09-17_11-06-37_859_virtual_tap.hdf5") # path to the hdf5 file
+    file_path = os.fsencode("/home/rtdug/UCT-EEE4022S-2024/trial-2/data/Experiment_2024-09-17_17-29-09_944_palm_release.hdf5") # path to the hdf5 file
     file_hdf5 = h5py.File(file_path) # load the hdf5 file
 
     range_res = read.rangeResolution(file_hdf5)
@@ -129,9 +130,49 @@ def runTest():
     plt.close()
 
 
+def beamformingTest():
+    file_path = os.fsencode("/home/rtdug/UCT-EEE4022S-2024/trial-2/data/Experiment_2024-09-17_12-05-59_413_swipe_left.hdf5") # path to the hdf5 file
+    file_hdf5 = h5py.File(file_path) # load the hdf5 file
+
+    range_res = read.rangeResolution(file_hdf5)
+    velocity_res = read.velocityResolution(file_hdf5)
+
+    data_cube = read.radarDataTensor(file_hdf5)
+
+    data_cube = data_cube[:20,...]
+    print(data_cube.shape)
+
+    data_cube = (radar.rangeDoppler(data_cube, torch.hann_window))
+
+
+    data_cube = processes.angleProcess2(data_cube, file_hdf5)
+
+    for i in range(data_cube.shape[1]):
+        to_plot = data_cube[0, i, ...]
+
+        fig, (ax1, ax2) = plt.subplots(2)
+    
+        velocity_max = data_cube.shape[2]//2*velocity_res
+        range_max = data_cube.shape[3]*range_res
+
+        ax1.imshow(to_plot, interpolation='none', extent=(0, range_max, -velocity_max, velocity_max), aspect='auto')    
+
+        range_high = int(0.75/range_res)
+        range_low = int(0.25/range_res)
+        velocity_high = int(-3/velocity_res)
+        velocity_low = int(3/velocity_res)
+
+        ax2.imshow(to_plot[velocity_low:velocity_high, range_low:range_high], interpolation='none', extent=(0.25, 0.75, -3, 3), aspect='auto')
+
+        plt.savefig(f"/home/rtdug/UCT-EEE4022S-2024/sample-figs/_angle{i}.png")
+        plt.close()
+
+
+
 def main():
     runTest()
-    # microDopplerTest()
+    
+    # beamformingTest()
 
 if __name__ == "__main__":
     main()

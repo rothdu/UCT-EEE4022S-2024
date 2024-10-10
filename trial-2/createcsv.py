@@ -2,8 +2,11 @@ import os
 import pandas as pd
 import h5py
 
-gestures = ("virtual_tap","virtual_slider_left","virtual_slider_right","swipe_left","swipe_right", "swipe_up", "swipe_down",
-            "palm_grab", "palm_release", "virtual_knob_clockwise", "virtual_knob_anticlockwise", "pinch_out_horizontal", 
+# gestures = ("virtual_tap","virtual_slider_left","virtual_slider_right","swipe_left","swipe_right", "swipe_up", "swipe_down",
+#             "palm_grab", "palm_release", "virtual_knob_clockwise", "virtual_knob_anticlockwise", "pinch_out_horizontal", 
+#             "pinch_out_vertical")
+gestures = ("virtual_tap","swipe_left","swipe_right",
+            "palm_grab", "palm_release", "pinch_out_horizontal", 
             "pinch_out_vertical")
 non_gestures = ("still_hand_open", "still_hand_closed", "empty")
 
@@ -27,7 +30,7 @@ for idx, filename in enumerate(os.listdir("data/")):
             if n in filename:
                 train_df.loc[loc, "label"] = "non_gesture"
 
-train_df.to_csv ('gestures_ge20.csv', index = False, header=True)
+train_df.to_csv ('gestures_ge20_reduced.csv', index = False, header=True)
 
 # gestures = ("virtual_tap","virtual_slider_left","virtual_slider_right","swipe_left","swipe_right", "swipe_up", "swipe_down",
 #             "palm_grab", "palm_release", "virtual_knob_clockwise", "virtual_knob_anticlockwise", "pinch_out_horizontal", 

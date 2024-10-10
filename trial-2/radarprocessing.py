@@ -1,6 +1,7 @@
 import torch
 
 from scipy import constants
+import matplotlib.pyplot as plt
 
 def rangeFft(data_cube, window=None):
     '''Compute FFT over range axis with the specific windowing function'''
@@ -16,6 +17,14 @@ def dopplerFft(data_cube, window=None):
         window_tensor = window(data_cube.shape[2])[None, None, ..., None] # create window tensor with correct number of axes
         data_cube = data_cube*window_tensor.expand(data_cube.shape) #
     doppler_fft = torch.fft.fftshift(torch.fft.fft(data_cube, dim=2), (2,))
+    return doppler_fft
+
+def angleFft(data_cube, window=None):
+    '''Compute FFT over doppler axis with the specified windowing funtion'''
+    if window:
+        window_tensor = window(data_cube.shape[2])[None, ..., None, None] # create window tensor with correct number of axes
+        data_cube = data_cube*window_tensor.expand(data_cube.shape) #
+    doppler_fft = torch.fft.fftshift(torch.fft.fft(data_cube, dim=1), (1,))
     return doppler_fft
 
 def rangeDoppler(data_cube, window=None):
@@ -38,7 +47,7 @@ def cfar(data_cube, kernel, probability_false_alarm=1e-3):
 
     # cfar kernel
     # snr = torch.zeros(torch.shape(data_cube)) # extra stuff needs to be done to find SNR as well if wanted
-    noise_cube = torch.zeros(data_cube.shape[2:], dtype=data_cube.dtype)
+    noise_cube = torch.zeros_like(data_cube[0, 0, ...])
     noise_cube[0:kernel.shape[0], 0:kernel.shape[1]] = kernel # zero pad in range and doppler dimensions
     # print(noise_cube)
     noise_cube = noise_cube[None, None, ...].expand(data_cube.shape) # expand across all channels and frames
@@ -66,14 +75,29 @@ def microDoppler(data_cube, range_bin, n_fft=64, hop_length=2, win_length=16, ra
     best_bins = torch.sum(torch.abs(dopplerFft(data_cube[..., range_bin[0]:range_bin[1]], torch.hann_window))[:, 0, ...], dim=1)
     data_cube = data_cube[:, 0, ...]
     best_bins = range_bin[0] + torch.argmax(best_bins, dim=1)
-    
+
+    data_cube = data_cube - torch.sum(data_cube[0:1, ...], dim=0, keepdim=True)
+    data_cube = data_cube[1:,...]
+    best_bins = best_bins[1:,...]
+
     doppler_tensor = torch.zeros_like(data_cube[..., :3])
     for frame, best_bin in enumerate(best_bins):
         selection = data_cube[frame, :, best_bin-1:best_bin+2]
+
+        # fig, ax = plt.subplots()
+
+        # ax.imshow(torch.abs(selection), interpolation=None)
+
+        # plt.savefig(f"/home/rtdug/UCT-EEE4022S-2024/sample-figs/_md_frame{frame}.png")
+        # plt.close()
         doppler_tensor[frame, :, :] = selection
     
     doppler_tensor = torch.sum(doppler_tensor, dim=2)
     doppler_tensor = doppler_tensor.reshape((-1,))
-    spectrogram = torch.stft(doppler_tensor, n_fft, hop_length, win_length, doppler_window(win_length)) # generate spectrogram
+    if doppler_window:
+        spectrogram = torch.stft(doppler_tensor, n_fft, hop_length, win_length, doppler_window(win_length)) # generate spectrogram
+    else:
+        spectrogram = torch.stft(doppler_tensor, n_fft, hop_length, win_length, window=None) # generate spectrogram
     spectrogram = torch.fft.fftshift(spectrogram, 0)
     return spectrogram
+
