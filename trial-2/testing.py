@@ -53,7 +53,7 @@ def cfarTestProcess(data_cube, range_res, velocity_res, label): # TODO: Get rid 
     return data_cube
 
 def runTest():
-    file_path = os.fsencode("/home/rtdug/UCT-EEE4022S-2024/trial-2/data/Experiment_2024-09-17_17-29-09_944_palm_release.hdf5") # path to the hdf5 file
+    file_path = os.fsencode("/home/rtdug/UCT-EEE4022S-2024/trial-2/data-test-new/Experiment_2024-10-08_16-24-54_501_palm_release.hdf5") # path to the hdf5 file
     file_hdf5 = h5py.File(file_path) # load the hdf5 file
 
     range_res = read.rangeResolution(file_hdf5)
@@ -131,7 +131,7 @@ def runTest():
 
 
 def beamformingTest():
-    file_path = os.fsencode("/home/rtdug/UCT-EEE4022S-2024/trial-2/data/Experiment_2024-09-17_12-05-59_413_swipe_left.hdf5") # path to the hdf5 file
+    file_path = os.fsencode("/home/rtdug/UCT-EEE4022S-2024/trial-2/data/Experiment_2024-09-17_17-02-48_535_palm_grab.hdf5") # path to the hdf5 file
     file_hdf5 = h5py.File(file_path) # load the hdf5 file
 
     range_res = read.rangeResolution(file_hdf5)
@@ -168,11 +168,32 @@ def beamformingTest():
         plt.close()
 
 
+def newTest():
+    torch.set_default_device('cuda')
+
+    root_dir = "data-test-same"
+    for name in os.listdir(root_dir):
+        file_path = os.path.join(root_dir, name)
+        file_hdf5 = h5py.File(file_path) # load the hdf5 file
+
+        data_cube = read.radarDataTensor(file_hdf5)
+        data_cube = data_cube.to('cuda')
+
+        processed = processes.handLocateProcess1(data_cube, file_hdf5)[0]
+        processed = processed.to('cpu')
+        num_plots = processed.shape[0]
+
+        fig, axes = plt.subplots(1, num_plots)
+
+        for i, ax in enumerate(axes):
+            ax.imshow(processed[i], interpolation=None)
+
+        plt.savefig("../sample-figs/data-test-same/" + name[:-5] + ".png")
+        plt.close()
+
 
 def main():
-    runTest()
-    
-    # beamformingTest()
+    newTest()
 
 if __name__ == "__main__":
     main()

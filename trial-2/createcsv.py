@@ -5,32 +5,34 @@ import h5py
 # gestures = ("virtual_tap","virtual_slider_left","virtual_slider_right","swipe_left","swipe_right", "swipe_up", "swipe_down",
 #             "palm_grab", "palm_release", "virtual_knob_clockwise", "virtual_knob_anticlockwise", "pinch_out_horizontal", 
 #             "pinch_out_vertical")
-gestures = ("virtual_tap","swipe_left","swipe_right",
-            "palm_grab", "palm_release", "pinch_out_horizontal", 
-            "pinch_out_vertical")
-non_gestures = ("still_hand_open", "still_hand_closed", "empty")
+gestures = ("palm_grab", "palm_release")
+# non_gestures = ("still_hand_open", "still_hand_closed", "empty")
+non_gestures = ()
 
 train_df = pd.DataFrame(columns=["file_name","label"])
-for idx, filename in enumerate(os.listdir("data/")):
+
+root_dir = "data/"
+
+for idx, filename in enumerate(os.listdir(root_dir)):
     
-    file = h5py.File(os.path.join('data', filename))
+    file = h5py.File(os.path.join(root_dir, filename))
 
     num_frames = len(file['Sensors/TI_Radar/Data'].keys())
 
     if num_frames >= 20:
-        loc = len(train_df.index)
-        train_df.loc[loc, "file_name"] = filename
 
 
 
         for g in gestures:
             if g in filename:
+                loc = len(train_df.index)
                 train_df.loc[loc, "label"] = g
+                train_df.loc[loc, "file_name"] = filename
         for n in non_gestures:
             if n in filename:
                 train_df.loc[loc, "label"] = "non_gesture"
 
-train_df.to_csv ('gestures_ge20_reduced.csv', index = False, header=True)
+train_df.to_csv('gestures_ge20_tiny.csv', index = False, header=True)
 
 # gestures = ("virtual_tap","virtual_slider_left","virtual_slider_right","swipe_left","swipe_right", "swipe_up", "swipe_down",
 #             "palm_grab", "palm_release", "virtual_knob_clockwise", "virtual_knob_anticlockwise", "pinch_out_horizontal", 

@@ -36,7 +36,7 @@ import random
 class GestureDataset(Dataset):
     """Dataset of radar hand gestures"""
 
-    def __init__(self, csv_file, root_dir, transform=None, label_transform = None):
+    def __init__(self, csv_file, root_dir, labels = None, transform=None, label_transform = None):
         """
         Arguments:
             csv_file (string) Path to the csv file with ground truth information
@@ -48,7 +48,10 @@ class GestureDataset(Dataset):
         self.root_dir = root_dir
         self.transform = transform
         self.label_transform = label_transform
-        self.labels = tuple(self.gesture_df["label"].unique())
+        if labels:
+            self.labels = labels
+        else:
+            self.labels = tuple(self.gesture_df["label"].unique())
         
         # Create a dictionary. 'label': (tuple of all indices where that label occurs in the dataset)
         # Useful for creating training-validation splits later on
@@ -119,24 +122,32 @@ def runCnn(model_obj,
            num_splits, 
            portion_val, 
            num_epochs, 
-           learning_rate
+           learning_rate, 
+           test, 
+           process
            ):
 
 
     dataset = GestureDataset(input_csv, root_dir, transform=transform)
+
     criterion = nn.CrossEntropyLoss()
 
     splits = generateSplits(dataset, num_splits, portion_val)
 
     results_df = pd.DataFrame()
     confusion_df = pd.DataFrame(0, index = dataset.getLabels(), columns = dataset.getLabels())
+    test_results_df = pd.DataFrame()
+    test_same_confusion_df = pd.DataFrame(0, index = dataset.getLabels(), columns = dataset.getLabels())
+    test_new_confusion_df = pd.DataFrame(0, index = dataset.getLabels(), columns = dataset.getLabels())
+
+
 
     for split, (train_ids, val_ids) in enumerate(splits):
         print(f"Split: {split+1}")
         
         model = model_obj(num_channels, len(dataset.getLabels()))
         optimiser = optim.Adam(model.parameters(), lr=learning_rate)
-        
+
         train_sampler = SubsetRandomSampler(train_ids)
         val_sampler =  SubsetRandomSampler(val_ids)           
             
@@ -144,10 +155,31 @@ def runCnn(model_obj,
         val_loader = DataLoader(dataset, batch_size=16, sampler=val_sampler, num_workers=4)
 
         loss_history = runModel(model, optimiser, train_loader, val_loader, criterion, num_epochs)
-
-        
+        print(loss_history)
 
         confusion(model, val_loader, confusion_df)
+        
+        if test:
+            testset_new = GestureDataset("test_new_ge20_tiny.csv", "data-test-new", transform=transform, labels=dataset.getLabels())
+            processInputs("test_new_ge20_tiny.csv", "data-test-new", process)
+
+            new_loader = DataLoader(testset_new, batch_size=16, num_workers=4)
+            new_loss, new_acc = evaluate(model, new_loader, criterion)
+            test_results_df.loc[0, "new_loss"] = new_loss
+            test_results_df.loc[0, "new_acc"] = new_acc
+
+            confusion(model, new_loader, test_new_confusion_df)
+
+
+            testset_same = GestureDataset("test_same_ge20_tiny.csv", "data-test-same", transform=transform, labels=dataset.getLabels())
+            processInputs("test_same_ge20_tiny.csv", "data-test-same", process)
+            same_loader = DataLoader(testset_same, batch_size=16, num_workers=4)
+            same_loss, same_acc = evaluate(model, same_loader, criterion)
+            test_results_df.loc[0, "same_loss"] = same_loss
+            test_results_df.loc[0, "same_acc"] = same_acc
+
+            confusion(model, same_loader, test_same_confusion_df)
+
 
         new_column_names = {
             "train_loss": f"train_loss_{split+1}",
@@ -163,7 +195,15 @@ def runCnn(model_obj,
     results_df.to_csv(out_csv, index = False, header=True)     
     confusion_df.to_csv(confusion_csv, index=True, header=True)
 
-def evaluate(model, loader, criterion):
+    if test:
+        test_results_df.to_csv("test_" + out_csv, index=False, header=True)
+        test_same_confusion_df.to_csv("test_same_" + confusion_csv, index=True, header=True)
+        test_new_confusion_df.to_csv("test_new_" + confusion_csv, index=True, header=True)
+
+
+
+def evaluate(model, loader, criterion): 
+    # Have to pass these labels in separately because my dynamic label grabbing messes things up
     model.eval()
     # initialise evaluation parameters
     correct = 0
@@ -194,6 +234,7 @@ def evaluate(model, loader, criterion):
     return return_loss, return_acc
 
 def confusion(model, loader, confusion_df):    
+    model.eval()
 
     with torch.no_grad():
         for data in loader:
@@ -312,53 +353,64 @@ def processInputs(input_csv, root_dir, radar_process, plot=False):
 
 def main():
     torch.set_default_device('cuda')
-    input_csv = "gestures_ge20.csv"
+    input_csv = "gestures_ge20_tiny.csv"
     root_dir = "data"
-    num_splits = 5
-    portion_val = 0.2
-    num_epochs = 200
+    num_splits = 1
+    portion_val = 0.1
+    num_epochs = 150
     learning_rate = 0.0002
     num_channels = 1
     transform = processes.cfarCrop2
+    test = True
 
+    out_csv = "results.csv"
+    confusion_csv = "confusion.csv"
+    process = processes.handLocateProcess1
+    model = cnns.NewModel1
+    transform = None
+    processInputs(input_csv, root_dir, process)
+    runCnn(model, num_channels, input_csv, root_dir, transform, out_csv, confusion_csv, num_splits, portion_val, num_epochs, learning_rate, test, process)
 
+    
+
+    # processInputs("test_same_ge20.csv", "data-test-same", processes.rangeDopplerProcess2, True)
     #TODOTODOTODO:  Check all the  todos lol
     # NOTE: Check the max pooling on the md model
 
-    out_csv = "results_cfar_2d_clutter.csv"
-    confusion_csv = "confusion_cfar_2d_clutter.csv"
-    model = cnns.CfarModel1
-    process = processes.cfarProcess3
-    processInputs(input_csv, root_dir, process)
-    runCnn(model, num_channels, input_csv, root_dir, transform, out_csv, confusion_csv, num_splits, portion_val, num_epochs, learning_rate)
+    # out_csv = "results_cfar_2d_clutter.csv"
+    # confusion_csv = "confusion_cfar_2d_clutter.csv"
+    # model = cnns.CfarModel1
+    # process = processes.cfarProcess3
+    # processInputs(input_csv, root_dir, process)
+    # runCnn(model, num_channels, input_csv, root_dir, transform, out_csv, confusion_csv, num_splits, portion_val, num_epochs, learning_rate, test, process)
 
-    out_csv = "results_cfar_3d_clutter.csv"
-    confusion_csv = "confusion_cfar_3d_clutter.csv"
-    model = cnns.CfarModel3
-    process = processes.cfarProcess4
-    processInputs(input_csv, root_dir, process)
-    runCnn(model, num_channels, input_csv, root_dir, transform, out_csv, confusion_csv, num_splits, portion_val, num_epochs, learning_rate)
+    # out_csv = "results_cfar_3d_clutter.csv"
+    # confusion_csv = "confusion_cfar_3d_clutter.csv"
+    # model = cnns.CfarModel3
+    # process = processes.cfarProcess4
+    # processInputs(input_csv, root_dir, process)
+    # runCnn(model, num_channels, input_csv, root_dir, transform, out_csv, confusion_csv, num_splits, portion_val, num_epochs, learning_rate, test, process)
 
-    out_csv = "results_cfar_3d_noclutter.csv"
-    confusion_csv = "confusion_cfar_3d_noclutter.csv"
-    model = cnns.CfarModel3
-    process = processes.cfarProcess5
-    processInputs(input_csv, root_dir, process)
-    runCnn(model, num_channels, input_csv, root_dir, transform, out_csv, confusion_csv, num_splits, portion_val, num_epochs, learning_rate)
+    # out_csv = "results_cfar_3d_noclutter.csv"
+    # confusion_csv = "confusion_cfar_3d_noclutter.csv"
+    # model = cnns.CfarModel3
+    # process = processes.cfarProcess5
+    # processInputs(input_csv, root_dir, process)
+    # runCnn(model, num_channels, input_csv, root_dir, transform, out_csv, confusion_csv, num_splits, portion_val, num_epochs, learning_rate, test, process)
 
-    out_csv = "results_rd_3d_clutter.csv"
-    confusion_csv = "confusion_rd_clutter.csv"
-    model = cnns.CfarModel3
-    process = processes.rangeDopplerProcess1
-    processInputs(input_csv, root_dir, process)
-    runCnn(model, num_channels, input_csv, root_dir, transform, out_csv, confusion_csv, num_splits, portion_val, num_epochs, learning_rate)
+    # out_csv = "results_rd_3d_clutter.csv"
+    # confusion_csv = "confusion_rd_clutter.csv"
+    # model = cnns.CfarModel3
+    # process = processes.rangeDopplerProcess1
+    # processInputs(input_csv, root_dir, process)
+    # runCnn(model, num_channels, input_csv, root_dir, transform, out_csv, confusion_csv, num_splits, portion_val, num_epochs, learning_rate, test, process)
 
-    out_csv = "results_rd_3d_noclutter.csv"
-    confusion_csv = "confusion_rd_3d_noclutter.csv"
-    model = cnns.CfarModel3
-    process = processes.rangeDopplerProcess2
-    processInputs(input_csv, root_dir, process)
-    runCnn(model, num_channels, input_csv, root_dir, transform, out_csv, confusion_csv, num_splits, portion_val, num_epochs, learning_rate)
+    # out_csv = "results_rd_3d_noclutter.csv"
+    # confusion_csv = "confusion_rd_3d_noclutter.csv"
+    # model = cnns.CfarModel3
+    # process = processes.rangeDopplerProcess2
+    # processInputs(input_csv, root_dir, process)
+    # runCnn(model, num_channels, input_csv, root_dir, transform, out_csv, confusion_csv, num_splits, portion_val, num_epochs, learning_rate, test, process)
 
 
 if __name__ == "__main__":

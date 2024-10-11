@@ -332,6 +332,95 @@ def angleCrop1(data_cube, file_hdf5):
     return data_cube
 
 
+def bestFrame(data_cube, range_low, range_high):
+
+    data_cube_analysis = data_cube[:, :, :, range_low:range_high]
+
+    data_cube_analysis = torch.pow(torch.abs(data_cube_analysis), 2)
+
+    data_cube_analysis = torch.sum(data_cube_analysis, dim=(2, 3,), keepdim=True)
+    data_cube_analysis = data_cube_analysis[:, 0, 0, 0]
+
+    best_frame = torch.argmax(data_cube_analysis)
+
+    return best_frame
+
+def bestRangeBin(cfar, range_low, range_high):
+    analysis_cube = cfar[:, 0:1, :, range_low:range_high]
+    analysis_cube = torch.sum(analysis_cube, dim=2, keepdim=True)
+    analysis_cube = torch.amax(analysis_cube, dim=0, keepdim=True)
+
+    for i, detection in  enumerate(analysis_cube.squeeze()):
+        if detection >= 3:
+            return range_low + i
+    
+    return range_low + (range_high-range_low)//2
 
 
+def handLocateProcess1(data_cube, file_hdf5):
 
+    data_cube = radar.rangeDoppler(data_cube, torch.hann_window)
+
+    # range res is useful for a few calculations down the line
+    range_res = read.rangeResolution(file_hdf5)
+    range_low = int(0.25/range_res)
+    range_high = int(0.75/range_res)
+
+    # choose the best frames to analyse based on average power in the selected region of the range doppler map
+    best_frame = bestFrame(data_cube, range_low, range_high)
+    start_frame = best_frame - 10
+    if start_frame < 0: start_frame = 0
+    if start_frame+20 > data_cube.shape[0]: start_frame = data_cube.shape[0] - 20
+    data_cube = data_cube[start_frame:start_frame+20, ...]
+    # data_cube = data_cube[:20, ...]
+
+    # generate CFAR over all frames
+    kernel = torch.zeros((25, 11))
+    kernel[12, :3] = 1
+    kernel[:7, 5] = 1
+    kernel[-7:, 5] = 1
+    cfar = radar.cfar(data_cube - torch.sum(data_cube[0:2], dim=0, keepdim=True)/2, kernel, 1e-2)
+    
+    # find the first target:
+    range_bin = bestRangeBin(cfar, range_low, range_high)
+
+    # print(range_bin * range_res)
+
+    #  find max in each frame (this should be the max value of the crosstalk)
+    max_per_frame = torch.amax(torch.abs(data_cube)[2:, ...], dim=(2, 3,), keepdim=True)
+    
+    # crop down to appropriate range interval:
+    data_cube = data_cube[..., range_bin-2:range_bin+4]
+
+
+        
+    # remove clutter
+    data_cube = data_cube - (torch.sum(data_cube[0:2], dim=0, keepdim=True) / 2)
+    data_cube = data_cube[2:, ...]
+    
+    # sum pairs of frames for time dimension in 3D CNN... a bit like an early max pooling stage
+    data_cube_out = torch.zeros_like(data_cube[:9, ...])
+    max_per_frame_out = torch.zeros_like(max_per_frame[:9, ...])
+
+    for i in range(9):
+        data_cube_out[i] = torch.sum(data_cube[i*2:(i+1)*2, ...], dim=(0,), keepdim=False) / 2
+        max_per_frame_out[i] = torch.sum(max_per_frame[i*2:(i+1)*2, ...], dim=(0,), keepdim=False) / 2
+
+    data_cube = data_cube_out
+    max_per_frame = max_per_frame_out
+    max_per_frame = radar.todB(max_per_frame)
+    data_cube = radar.todB(torch.abs(data_cube))
+    
+    # normalise around the calculated max and with the given dynamic range
+    dynamic_range = 60
+    data_cube = data_cube - max_per_frame + dynamic_range
+    data_cube = data_cube / dynamic_range
+    
+    # Get rid of any additional values (mostly applicable to cutting out noise below 60 dB)
+    data_cube[data_cube < 0] = 0
+    data_cube[data_cube > 1] = 1
+
+    # Select first channel for final run through CNN
+    # also add the CNN channels dimension
+    data_cube = data_cube[:, 0, :, :].unsqueeze(0)
+    return data_cube
