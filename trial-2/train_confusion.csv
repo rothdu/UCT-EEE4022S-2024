@@ -1,0 +1,8 @@
+,non_gesture,swipe_down,swipe_up,palm_release,swipe_right,palm_grab,swipe_left
+non_gesture,5,1,0,0,0,0,0
+swipe_down,1,5,1,0,0,0,0
+swipe_up,0,1,2,0,2,0,1
+palm_release,0,0,0,7,0,0,0
+swipe_right,0,0,1,0,6,0,0
+palm_grab,0,0,0,0,0,6,0
+swipe_left,0,0,0,0,0,0,6

@@ -47,14 +47,14 @@ def cfar(data_cube, kernel, probability_false_alarm=1e-3):
 
     # cfar kernel
     # snr = torch.zeros(torch.shape(data_cube)) # extra stuff needs to be done to find SNR as well if wanted
-    noise_cube = torch.zeros_like(data_cube[0, 0, ...])
-    noise_cube[0:kernel.shape[0], 0:kernel.shape[1]] = kernel # zero pad in range and doppler dimensions
+    noise_cube = torch.zeros_like(data_cube[0:1, 0:1, ...])
+    noise_cube[:, :, 0:kernel.shape[0], 0:kernel.shape[1]] = kernel # zero pad in range and doppler dimensions
     # print(noise_cube)
-    noise_cube = noise_cube[None, None, ...].expand(data_cube.shape) # expand across all channels and frames
+    noise_cube = noise_cube.expand(data_cube.shape) # expand across all channels and frames
 
     noise_cube = torch.fft.ifft2(torch.conj(torch.fft.fft2(noise_cube))*torch.fft.fft2(data_cube)) # do the fancy frequency domain based convolution
-    noise_cube = torch.roll(noise_cube, kernel.shape[0]//2, dims=2) # Not sure I understand this step but it is apparently necessary
-    noise_cube = torch.roll(noise_cube, kernel.shape[1]//2, dims=1) # TODO: hmmm
+    # noise_cube = torch.roll(noise_cube, kernel.shape[0]//2, dims=2) # Not sure I understand this step but it is apparently necessary
+    # noise_cube = torch.roll(noise_cube, kernel.shape[1]//2, dims=1) # TODO: hmmm
 
     data_cube = torch.where(data_cube.gt(torch.abs(noise_cube)*alpha), 1.0, 0) # generate CFAR for each range-doppler map in the cube
 
@@ -69,31 +69,15 @@ def generateDopplerKernel(len, guard_len):
     kernel[unguarded_len:-unguarded_len] = 0
     return kernel.reshape((-1, 1))
 
-def microDoppler(data_cube, range_bin, n_fft=64, hop_length=2, win_length=16, range_window = torch.hann_window, doppler_window = torch.hann_window):
+def microDoppler(data_cube, n_fft=64, hop_length=2, win_length=16, range_window = torch.hann_window, doppler_window = torch.hann_window, doRangeFft=True):
     '''Create micro doppler spectrogram from radar data cube'''
-    data_cube = rangeFft(data_cube, range_window)
-    best_bins = torch.sum(torch.abs(dopplerFft(data_cube[..., range_bin[0]:range_bin[1]], torch.hann_window))[:, 0, ...], dim=1)
-    data_cube = data_cube[:, 0, ...]
-    best_bins = range_bin[0] + torch.argmax(best_bins, dim=1)
-
-    data_cube = data_cube - torch.sum(data_cube[0:1, ...], dim=0, keepdim=True)
-    data_cube = data_cube[1:,...]
-    best_bins = best_bins[1:,...]
-
-    doppler_tensor = torch.zeros_like(data_cube[..., :3])
-    for frame, best_bin in enumerate(best_bins):
-        selection = data_cube[frame, :, best_bin-1:best_bin+2]
-
-        # fig, ax = plt.subplots()
-
-        # ax.imshow(torch.abs(selection), interpolation=None)
-
-        # plt.savefig(f"/home/rtdug/UCT-EEE4022S-2024/sample-figs/_md_frame{frame}.png")
-        # plt.close()
-        doppler_tensor[frame, :, :] = selection
+    if doRangeFft:
+        data_cube = rangeFft(data_cube, range_window)
     
-    doppler_tensor = torch.sum(doppler_tensor, dim=2)
-    doppler_tensor = doppler_tensor.reshape((-1,))
+    data_cube = data_cube[:, 0, ...]
+
+    doppler_tensor = data_cube.reshape((-1,))
+
     if doppler_window:
         spectrogram = torch.stft(doppler_tensor, n_fft, hop_length, win_length, doppler_window(win_length)) # generate spectrogram
     else:
@@ -101,3 +85,26 @@ def microDoppler(data_cube, range_bin, n_fft=64, hop_length=2, win_length=16, ra
     spectrogram = torch.fft.fftshift(spectrogram, 0)
     return spectrogram
 
+def bestFrame(data_cube, range_low, range_high):
+
+    data_cube_analysis = data_cube[:, :, :, range_low:range_high]
+
+    data_cube_analysis = torch.pow(torch.abs(data_cube_analysis), 2)
+
+    data_cube_analysis = torch.sum(data_cube_analysis, dim=(2, 3,), keepdim=True)
+    data_cube_analysis = data_cube_analysis[:, 0, 0, 0]
+
+    best_frame = torch.argmax(data_cube_analysis)
+
+    return best_frame
+
+def bestRangeBin(cfar, range_low, range_high):
+    analysis_cube = cfar[:, 0:1, :, range_low:range_high]
+    analysis_cube = torch.sum(analysis_cube, dim=2, keepdim=True)
+    analysis_cube = torch.amax(analysis_cube, dim=0, keepdim=True)
+
+    for i, detection in  enumerate(analysis_cube.squeeze()):
+        if detection >= 3:
+            return range_low + i
+    
+    return range_low + (range_high-range_low)//2

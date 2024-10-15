@@ -5,17 +5,13 @@ import pandas as pd
 import numpy as np
 
 def main():
-    for name in ("cfar_2d_clutter", "cfar_3d_clutter", "cfar_3d_noclutter", "rd_3d_clutter", "rd_3d_noclutter"):
-        csv_file = "results_" + name + ".csv"
+    for name in ("bf_train_results",):
+        csv_file = "results/" + name + ".csv"
 
         results_df = pd.read_csv(csv_file, header=0)
 
         
         stats_df = pd.DataFrame()
-
-        train_loss_mask = results_df.columns.str.contains('train_loss_.')
-        val_loss_mask = results_df.columns.str.contains('val_loss_.')
-        val_acc_mask = results_df.columns.str.contains('val_acc_.')
 
         for output_type in ("train_loss", "val_loss", "val_acc"):
             mask = results_df.columns.str.contains(output_type + '_.')
@@ -26,7 +22,7 @@ def main():
         
         fig, ax = plt.subplots()
 
-        x = np.linspace(0, 200, stats_df.shape[0])
+        x = np.linspace(0, 100, stats_df.shape[0])
 
         ax.plot(x, stats_df.loc[:, "train_loss_avg"])
         ax.plot(x, stats_df.loc[:, "val_loss_avg"])
