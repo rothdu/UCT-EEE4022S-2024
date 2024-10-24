@@ -313,7 +313,7 @@ def gestures6():
 
 def processInputs(radar_process, in_csvs, root_dirs, plot=False):
     
-    processed_path = os.fsencode("processed_data/gestures.hdf5")
+    processed_path = os.fsencode("processed-data/gestures.hdf5")
 
     if os.path.exists(processed_path):
         os.remove(processed_path)

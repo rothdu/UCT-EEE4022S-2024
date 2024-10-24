@@ -37,7 +37,7 @@ class GestureDataset(Dataset):
             idx = idx.tolist()
         
         # some of this could be done with transforms... but I am doing it here for now
-        data_hdf5 = h5py.File(os.fsencode("processed_data/gestures.hdf5")) # load the hdf5 file
+        data_hdf5 = h5py.File(os.fsencode("processed-data/gestures.hdf5")) # load the hdf5 file
         item_name = self.gesture_df.iloc[idx, 0]
 
         data_cube = torch.as_tensor(data_hdf5[item_name][:], device='cpu')
