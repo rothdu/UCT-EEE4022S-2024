@@ -1,0 +1,7 @@
+,swipe_down,swipe_up,palm_release,swipe_right,palm_grab,swipe_left
+swipe_down,136,9,0,6,3,1
+swipe_up,11,104,0,34,2,4
+palm_release,1,10,138,13,4,9
+swipe_right,22,27,1,97,1,12
+palm_grab,12,8,1,6,128,0
+swipe_left,1,8,2,15,0,129

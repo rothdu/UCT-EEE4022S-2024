@@ -442,11 +442,128 @@ class NewModel1(nn.Module):
 
         return x
 
-class TimeModelFinal(nn.Module):
+
+class RangeDoppler2dModelFinal(nn.Module):
 
     def __init__(self, numChannels, numClasses):
 
-        super(TimeModelFinal, self).__init__()
+        super(RangeDoppler2dModelFinal, self).__init__()
+
+        self.conv1 = nn.Conv2d(numChannels, 8, (9, 3), padding='same')
+        self.relu1 = nn.ReLU()
+        self.maxpool1 = nn.MaxPool2d((1, 2), (1, 2), ceil_mode=True)
+
+        self.conv2 = nn.Conv2d(8, 32, (9, 3), padding='same')
+        self.relu2 = nn.ReLU()
+        self.maxpool2 = nn.MaxPool2d((1, 2), (1, 2), ceil_mode=True)
+
+        self.fc1 = nn.Linear(3200, 2048)
+        self.relu3 = nn.ReLU()
+
+        self.fc2 = nn.Linear(2048, 512)
+        self.relu4 = nn.ReLU()
+
+        self.fc3 = nn.Linear(512, 128)
+        self.relu5 = nn.ReLU()
+
+        self.fc4 = nn.Linear(128, 32)
+        self.relu6 = nn.ReLU()
+
+        self.fc5 = nn.Linear(32, numClasses)
+        self.logsoftmax1 = nn.LogSoftmax(dim=1)
+
+    def forward(self, x):
+
+        x = self.conv1(x)
+        x = self.relu1(x)
+        x = self.maxpool1(x)
+
+        x = self.conv2(x)
+        x = self.relu2(x)
+        x = self.maxpool2(x)
+
+        x = torch.flatten(x, start_dim=1, end_dim=-1)
+
+        x = self.fc1(x)
+        x = self.relu3(x)
+
+        x = self.fc2(x)
+        x = self.relu4(x)
+
+        x = self.fc3(x)
+        x = self.relu5(x)
+
+        x = self.fc4(x)
+        x = self.relu6(x)
+
+        x = self.fc5(x)
+        x = self.logsoftmax1(x)
+
+        return x
+
+class RangeDoppler3dModelFinal(nn.Module):
+
+    def __init__(self, numChannels, numClasses):
+
+        super(RangeDoppler3dModelFinal, self).__init__()
+
+        self.conv1 = nn.Conv3d(numChannels, 8, (3, 9, 3), padding='same')
+        self.relu1 = nn.ReLU()
+        self.maxpool1 = nn.MaxPool3d((2, 1, 2), (2, 1, 2), ceil_mode=True)
+
+        self.conv2 = nn.Conv3d(8, 32, (3, 9, 3), padding='same')
+        self.relu2 = nn.ReLU()
+        self.maxpool2 = nn.MaxPool3d((2, 1, 2), (2, 1, 2), ceil_mode=True)
+
+        self.fc1 = nn.Linear(16000, 4096)
+        self.relu3 = nn.ReLU()
+
+        self.fc2 = nn.Linear(4096, 1024)
+        self.relu4 = nn.ReLU()
+
+        self.fc3 = nn.Linear(1024, 256)
+        self.relu5 = nn.ReLU()
+
+        self.fc4 = nn.Linear(256, 64)
+        self.relu6 = nn.ReLU()
+
+        self.fc5 = nn.Linear(64, numClasses)
+        self.logsoftmax1 = nn.LogSoftmax(dim=1)
+
+    def forward(self, x):
+
+        x = self.conv1(x)
+        x = self.relu1(x)
+        x = self.maxpool1(x)
+
+        x = self.conv2(x)
+        x = self.relu2(x)
+        x = self.maxpool2(x)
+
+        x = torch.flatten(x, start_dim=1, end_dim=-1)
+
+        x = self.fc1(x)
+        x = self.relu3(x)
+
+        x = self.fc2(x)
+        x = self.relu4(x)
+
+        x = self.fc3(x)
+        x = self.relu5(x)
+
+        x = self.fc4(x)
+        x = self.relu6(x)
+
+        x = self.fc5(x)
+        x = self.logsoftmax1(x)
+
+        return x
+
+class Cfar3dModelFinal(nn.Module):
+
+    def __init__(self, numChannels, numClasses):
+
+        super(Cfar3dModelFinal, self).__init__()
 
         self.conv1 = nn.Conv3d(numChannels, 8, (3, 9, 3), padding='same')
         self.relu1 = nn.ReLU()

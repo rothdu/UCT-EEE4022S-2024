@@ -2,13 +2,13 @@ import os
 import pandas as pd
 import h5py
 
-gestures = ("virtual_tap","virtual_slider_left","virtual_slider_right","swipe_left","swipe_right", "swipe_up", "swipe_down",
-            "palm_grab", "palm_release", "virtual_knob_clockwise", "virtual_knob_anticlockwise", "pinch_out_horizontal", 
-            "pinch_out_vertical")
-# gestures = ("palm_release", "palm_grab", "swipe_up", "swipe_down", "swipe_right", "swipe_left")
+# gestures = ("virtual_tap","virtual_slider_left","virtual_slider_right","swipe_left","swipe_right", "swipe_up", "swipe_down",
+#             "palm_grab", "palm_release", "virtual_knob_clockwise", "virtual_knob_anticlockwise", "pinch_out_horizontal", 
+#             "pinch_out_vertical")
+gestures = ("palm_release", "palm_grab", "swipe_up", "swipe_down", "swipe_right", "swipe_left")
 # non_gestures = ("still_hand_open", "still_hand_closed", "empty")
-non_gestures = ("still_hand_open", )
-# non_gestures = ()
+# non_gestures = ("still_hand_open", )
+non_gestures = ()
 
 train_df = pd.DataFrame(columns=["file_name","label"])
 test_new_df = pd.DataFrame(columns=["file_name","label"])
@@ -104,10 +104,10 @@ for idx, filename in enumerate(os.listdir(root_dir)):
                 all_df.loc[loc, "label"] = "non_gesture"
 
 
-all_df.to_csv('csvs/all.csv', index = False, header=True)
-train_df.to_csv('csvs/train.csv', index = False, header=True)
-test_new_df.to_csv('csvs/test_new.csv', index = False, header=True)
-test_same_df.to_csv('csvs/test_same.csv', index = False, header=True)
+all_df.to_csv('csvs/all6.csv', index = False, header=True)
+train_df.to_csv('csvs/train6.csv', index = False, header=True)
+test_new_df.to_csv('csvs/test_new6.csv', index = False, header=True)
+test_same_df.to_csv('csvs/test_same6.csv', index = False, header=True)
 
 
 # gestures = ("virtual_tap","virtual_slider_left","virtual_slider_right","swipe_left","swipe_right", "swipe_up", "swipe_down",

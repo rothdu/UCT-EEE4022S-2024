@@ -34,54 +34,277 @@ from dataset import GestureDataset
 import random
 
 def main():
-    # STILL TO BE DONE:
-    # Go through the processes and make sure they make sense
-    # Modify models to make sure they make sense (including number of linear layers)
-    # Assemble csvs and run tests
     torch.set_default_device('cuda')
-    in_csvs = ("csvs/train.csv", "csvs/test_same.csv", "csvs/test_new.csv")
+
+    # gestures14()
+    # gestures6()
+    # fake3dTest()
+    trainOnTest()
+
+def trainOnTest():
     root_dirs = ("data", "data-test-same", "data-test-new")
-    out_csvs = ("results/train_results.csv", "results/test_same_results.csv", "results/test_new_results.csv")
-    confusion_csvs = ("results/train_confusion.csv", "results/test_same_confusio.csv", "results/test_new_confusion.csv")
     
     num_splits = 5
     portion_val = 0.2
-    num_epochs = 200
+    # num_epochs = 250
     learning_rate = 0.0002
     num_channels = 1
     transform = None
     test = False
-
-    out_csvs = ("results/rd_train_results.csv", "results/rd_test_same_results.csv", "results/rd_test_new_results.csv")
-    confusion_csvs = ("results/rd_train_confusion.csv", "results/rd_test_same_confusio.csv", "results/rd_test_new_confusion.csv")
-    process = processes.rangeDopplerProcessFinal
-    model = cnns.TimeModelFinal
+    
+    num_epochs = 500
+    in_csvs = ("csvs/test_same6.csv",)
+    
+    out_csvs = ("results/rd3d_test_same_results_6.csv",)
+    confusion_csvs = ("results/rd3d_test_same_confusion_6.csv",)
+    process = processes.rangeDoppler3dProcessFinal
+    model = cnns.RangeDoppler3dModelFinal
     processInputs(process, in_csvs, root_dirs)
     runCnn(model, num_channels, transform, in_csvs, root_dirs, out_csvs, confusion_csvs, num_splits, portion_val, num_epochs, learning_rate, test)
 
-    out_csvs = ("results/cfar_train_results.csv", "results/cfar_test_same_results.csv", "results/cfar_test_new_results.csv")
-    confusion_csvs = ("results/cfar_train_confusion.csv", "results/cfar_test_same_confusio.csv", "results/cfar_test_new_confusion.csv")
-    process = processes.cfarProcessFinal
-    model = cnns.TimeModelFinal
-    processInputs(process, in_csvs, root_dirs)
-    runCnn(model, num_channels, transform, in_csvs, root_dirs, out_csvs, confusion_csvs, num_splits, portion_val, num_epochs, learning_rate, test)
-
-    out_csvs = ("results/ang_train_results.csv", "results/ang_test_same_results.csv", "results/ang_test_new_results.csv")
-    confusion_csvs = ("results/ang_train_confusion.csv", "results/ang_test_same_confusio.csv", "results/ang_test_new_confusion.csv")
-    process = processes.angleProcessFinal
-    model = cnns.AngleModelFinal
-    processInputs(process, in_csvs, root_dirs)
-    runCnn(model, num_channels, transform, in_csvs, root_dirs, out_csvs, confusion_csvs, num_splits, portion_val, num_epochs, learning_rate, test)
-
-    out_csvs = ("results/bf_train_results.csv", "results/bf_test_same_results.csv", "results/bf_test_new_results.csv")
-    confusion_csvs = ("results/bf_train_confusion.csv", "results/bf_test_same_confusio.csv", "results/bf_test_new_confusion.csv")
+    out_csvs = ("results/bf_test_same_results_6.csv", )
+    confusion_csvs = ("results/bf_test_same_confusion_6.csv", )
     process = processes.beamformingProcessFinal
     model = cnns.BeamformingModelFinal
     processInputs(process, in_csvs, root_dirs)
     runCnn(model, num_channels, transform, in_csvs, root_dirs, out_csvs, confusion_csvs, num_splits, portion_val, num_epochs, learning_rate, test)
 
-    out_csvs = ("results/md_train_results.csv", "results/md_test_same_results.csv", "results/md_test_new_results.csv")
-    confusion_csvs = ("results/md_train_confusion.csv", "results/md_test_same_confusio.csv", "results/md_test_new_confusion.csv")
+    in_csvs = ("csvs/test_new6.csv",)
+
+    out_csvs = ("results/rd3d_test_new_results_6.csv",)
+    confusion_csvs = ("results/rd3d_test_new_confusion_6.csv",)
+    process = processes.rangeDoppler3dProcessFinal
+    model = cnns.RangeDoppler3dModelFinal
+    processInputs(process, in_csvs, root_dirs)
+    runCnn(model, num_channels, transform, in_csvs, root_dirs, out_csvs, confusion_csvs, num_splits, portion_val, num_epochs, learning_rate, test)
+
+    out_csvs = ("results/bf_test_new_results_6.csv", )
+    confusion_csvs = ("results/bf_test_new_confusion_6.csv", )
+    process = processes.beamformingProcessFinal
+    model = cnns.BeamformingModelFinal
+    processInputs(process, in_csvs, root_dirs)
+    runCnn(model, num_channels, transform, in_csvs, root_dirs, out_csvs, confusion_csvs, num_splits, portion_val, num_epochs, learning_rate, test)
+
+    num_epochs = 250
+    in_csvs = ("csvs/all_prop6.csv",)
+
+    out_csvs = ("results/rd3d_all_prop_results_6.csv",)
+    confusion_csvs = ("results/rd3d_all_prop_confusion_6.csv",)
+    process = processes.rangeDoppler3dProcessFinal
+    model = cnns.RangeDoppler3dModelFinal
+    processInputs(process, in_csvs, root_dirs)
+    runCnn(model, num_channels, transform, in_csvs, root_dirs, out_csvs, confusion_csvs, num_splits, portion_val, num_epochs, learning_rate, test)
+
+    out_csvs = ("results/bf_all_prop_results_6.csv", )
+    confusion_csvs = ("results/bf_all_prop_confusion_6.csv", )
+    process = processes.beamformingProcessFinal
+    model = cnns.BeamformingModelFinal
+    processInputs(process, in_csvs, root_dirs)
+    runCnn(model, num_channels, transform, in_csvs, root_dirs, out_csvs, confusion_csvs, num_splits, portion_val, num_epochs, learning_rate, test)
+
+    num_epochs = 500
+    in_csvs = ("csvs/test_same14.csv",)    
+    
+    out_csvs = ("results/rd3d_test_same_results_14.csv",)
+    confusion_csvs = ("results/rd3d_test_same_confusion_14.csv",)
+    process = processes.rangeDoppler3dProcessFinal
+    model = cnns.RangeDoppler3dModelFinal
+    processInputs(process, in_csvs, root_dirs)
+    runCnn(model, num_channels, transform, in_csvs, root_dirs, out_csvs, confusion_csvs, num_splits, portion_val, num_epochs, learning_rate, test)
+
+    out_csvs = ("results/bf_test_same_results_14.csv", )
+    confusion_csvs = ("results/bf_test_same_confusion_14.csv", )
+    process = processes.beamformingProcessFinal
+    model = cnns.BeamformingModelFinal
+    processInputs(process, in_csvs, root_dirs)
+    runCnn(model, num_channels, transform, in_csvs, root_dirs, out_csvs, confusion_csvs, num_splits, portion_val, num_epochs, learning_rate, test)
+
+    in_csvs = ("csvs/test_new14.csv",)
+
+    out_csvs = ("results/rd3d_test_new_results_14.csv",)
+    confusion_csvs = ("results/rd3d_test_new_confusion_14.csv",)
+    process = processes.rangeDoppler3dProcessFinal
+    model = cnns.RangeDoppler3dModelFinal
+    processInputs(process, in_csvs, root_dirs)
+    runCnn(model, num_channels, transform, in_csvs, root_dirs, out_csvs, confusion_csvs, num_splits, portion_val, num_epochs, learning_rate, test)
+
+    out_csvs = ("results/bf_test_new_results_14.csv", )
+    confusion_csvs = ("results/bf_test_new_confusion_14.csv", )
+    process = processes.beamformingProcessFinal
+    model = cnns.BeamformingModelFinal
+    processInputs(process, in_csvs, root_dirs)
+    runCnn(model, num_channels, transform, in_csvs, root_dirs, out_csvs, confusion_csvs, num_splits, portion_val, num_epochs, learning_rate, test)
+
+    num_epochs = 250
+    in_csvs = ("csvs/all_prop14.csv",)
+
+    out_csvs = ("results/rd3d_all_prop_results_14.csv",)
+    confusion_csvs = ("results/rd3d_all_prop_confusion_14.csv",)
+    process = processes.rangeDoppler3dProcessFinal
+    model = cnns.RangeDoppler3dModelFinal
+    processInputs(process, in_csvs, root_dirs)
+    runCnn(model, num_channels, transform, in_csvs, root_dirs, out_csvs, confusion_csvs, num_splits, portion_val, num_epochs, learning_rate, test)
+
+    out_csvs = ("results/bf_all_prop_results_14.csv", )
+    confusion_csvs = ("results/bf_all_prop_confusion_14.csv", )
+    process = processes.beamformingProcessFinal
+    model = cnns.BeamformingModelFinal
+    processInputs(process, in_csvs, root_dirs)
+    runCnn(model, num_channels, transform, in_csvs, root_dirs, out_csvs, confusion_csvs, num_splits, portion_val, num_epochs, learning_rate, test)
+
+def fake3dTest():
+    in_csvs = ("csvs/train14.csv", "csvs/test_same14.csv", "csvs/test_new14.csv")
+    root_dirs = ("data", "data-test-same", "data-test-new")
+    
+    num_splits = 5
+    portion_val = 0.2
+    num_epochs = 100
+    learning_rate = 0.0002
+    num_channels = 1
+    transform = None
+    test = False
+    
+    out_csvs = ("results/rd3dfake_train_results_14.csv", "results/rd3dfake_test_same_results_14.csv", "results/rd3dfake_test_new_results_14.csv")
+    confusion_csvs = ("results/rd3dfake_train_confusion_14.csv", "results/rd3dfake_test_same_confusion_14.csv", "results/rd3dfake_test_new_confusion_14.csv")
+    process = processes.rangeDoppler3dFakeProcessFinal
+    model = cnns.BeamformingModelFinal
+    processInputs(process, in_csvs, root_dirs)
+    runCnn(model, num_channels, transform, in_csvs, root_dirs, out_csvs, confusion_csvs, num_splits, portion_val, num_epochs, learning_rate, test)
+
+    in_csvs = ("csvs/train6.csv", "csvs/test_same6.csv", "csvs/test_new6.csv")
+    root_dirs = ("data", "data-test-same", "data-test-new")
+
+    num_splits = 5
+    portion_val = 0.2
+    num_epochs = 100
+    learning_rate = 0.0002
+    num_channels = 1
+    transform = None
+    test = False
+
+    out_csvs = ("results/rd3dfake_train_results_6.csv", "results/rd3dfake_test_same_results_6.csv", "results/rd3dfake_test_new_results_6.csv")
+    confusion_csvs = ("results/rd3dfake_train_confusion_6.csv", "results/rd3dfake_test_same_confusion_6.csv", "results/rd3dfake_test_new_confusion_6.csv")
+    process = processes.rangeDoppler3dFakeProcessFinal
+    model = cnns.BeamformingModelFinal
+    processInputs(process, in_csvs, root_dirs)
+    runCnn(model, num_channels, transform, in_csvs, root_dirs, out_csvs, confusion_csvs, num_splits, portion_val, num_epochs, learning_rate, test)
+
+def gestures14():
+    in_csvs = ("csvs/train14.csv", "csvs/test_same14.csv", "csvs/test_new14.csv")
+    root_dirs = ("data", "data-test-same", "data-test-new")
+    
+    num_splits = 5
+    portion_val = 0.2
+    # num_epochs = 200
+    learning_rate = 0.0002
+    num_channels = 1
+    transform = None
+    test = False
+
+    num_epochs = 90
+    out_csvs = ("results/rd2d_train_results_14.csv", "results/rd2d_test_same_results_14.csv", "results/rd2d_test_new_results_14.csv")
+    confusion_csvs = ("results/rd2d_train_confusion_14.csv", "results/rd2d_test_same_confusion_14.csv", "results/rd2d_test_new_confusion_14.csv")
+    process = processes.rangeDoppler2dProcessFinal
+    model = cnns.RangeDoppler2dModelFinal
+    processInputs(process, in_csvs, root_dirs)
+    runCnn(model, num_channels, transform, in_csvs, root_dirs, out_csvs, confusion_csvs, num_splits, portion_val, num_epochs, learning_rate, test)
+
+    num_epochs = 70
+    out_csvs = ("results/rd3d_train_results_14.csv", "results/rd3d_test_same_results_14.csv", "results/rd3d_test_new_results_14.csv")
+    confusion_csvs = ("results/rd3d_train_confusion_14.csv", "results/rd3d_test_same_confusion_14.csv", "results/rd3d_test_new_confusion_14.csv")
+    process = processes.rangeDoppler3dProcessFinal
+    model = cnns.RangeDoppler3dModelFinal
+    processInputs(process, in_csvs, root_dirs)
+    runCnn(model, num_channels, transform, in_csvs, root_dirs, out_csvs, confusion_csvs, num_splits, portion_val, num_epochs, learning_rate, test)
+
+    num_epochs = 30
+    out_csvs = ("results/cfar_train_results_14.csv", "results/cfar_test_same_results_14.csv", "results/cfar_test_new_results_14.csv")
+    confusion_csvs = ("results/cfar_train_confusion_14.csv", "results/cfar_test_same_confusion_14.csv", "results/cfar_test_new_confusion_14.csv")
+    process = processes.cfarProcessFinal
+    model = cnns.Cfar3dModelFinal
+    processInputs(process, in_csvs, root_dirs)
+    runCnn(model, num_channels, transform, in_csvs, root_dirs, out_csvs, confusion_csvs, num_splits, portion_val, num_epochs, learning_rate, test)
+
+    num_epochs = 70
+    out_csvs = ("results/ang_train_results_14.csv", "results/ang_test_same_results_14.csv", "results/ang_test_new_results_14.csv")
+    confusion_csvs = ("results/ang_train_confusion_14.csv", "results/ang_test_same_confusion_14.csv", "results/ang_test_new_confusion_14.csv")
+    process = processes.angleProcessFinal
+    model = cnns.AngleModelFinal
+    processInputs(process, in_csvs, root_dirs)
+    runCnn(model, num_channels, transform, in_csvs, root_dirs, out_csvs, confusion_csvs, num_splits, portion_val, num_epochs, learning_rate, test)
+
+    num_epochs = 50
+    out_csvs = ("results/bf_train_results_14.csv", "results/bf_test_same_results_14.csv", "results/bf_test_new_results_14.csv")
+    confusion_csvs = ("results/bf_train_confusion_14.csv", "results/bf_test_same_confusion_14.csv", "results/bf_test_new_confusion_14.csv")
+    process = processes.beamformingProcessFinal
+    model = cnns.BeamformingModelFinal
+    processInputs(process, in_csvs, root_dirs)
+    runCnn(model, num_channels, transform, in_csvs, root_dirs, out_csvs, confusion_csvs, num_splits, portion_val, num_epochs, learning_rate, test)
+
+    num_epochs = 30
+    out_csvs = ("results/md_train_results_14.csv", "results/md_test_same_results_14.csv", "results/md_test_new_results_14.csv")
+    confusion_csvs = ("results/md_train_confusion_14.csv", "results/md_test_same_confusion_14.csv", "results/md_test_new_confusion_14.csv")
+    process = processes.microDopplerProcessFinal
+    model = cnns.MicroDopplerModelFinal
+    processInputs(process, in_csvs, root_dirs)
+    runCnn(model, num_channels, transform, in_csvs, root_dirs, out_csvs, confusion_csvs, num_splits, portion_val, num_epochs, learning_rate, test)
+
+
+def gestures6():
+    in_csvs = ("csvs/train6.csv", "csvs/test_same6.csv", "csvs/test_new6.csv")
+    root_dirs = ("data", "data-test-same", "data-test-new")
+
+    num_splits = 5
+    portion_val = 0.2
+    # num_epochs = 200
+    learning_rate = 0.0002
+    num_channels = 1
+    transform = None
+    test = False
+
+    num_epochs = 60
+    out_csvs = ("results/rd2d_train_results_6.csv", "results/rd2d_test_same_results_6.csv", "results/rd2d_test_new_results_6.csv")
+    confusion_csvs = ("results/rd2d_train_confusion_6.csv", "results/rd2d_test_same_confusion_6.csv", "results/rd2d_test_new_confusion_6.csv")
+    process = processes.rangeDoppler2dProcessFinal
+    model = cnns.RangeDoppler2dModelFinal
+    processInputs(process, in_csvs, root_dirs)
+    runCnn(model, num_channels, transform, in_csvs, root_dirs, out_csvs, confusion_csvs, num_splits, portion_val, num_epochs, learning_rate, test)
+
+    num_epochs = 70
+    out_csvs = ("results/rd3d_train_results_6.csv", "results/rd3d_test_same_results_6.csv", "results/rd3d_test_new_results_6.csv")
+    confusion_csvs = ("results/rd3d_train_confusion_6.csv", "results/rd3d_test_same_confusion_6.csv", "results/rd3d_test_new_confusion_6.csv")
+    process = processes.rangeDoppler3dProcessFinal
+    model = cnns.RangeDoppler3dModelFinal
+    processInputs(process, in_csvs, root_dirs)
+    runCnn(model, num_channels, transform, in_csvs, root_dirs, out_csvs, confusion_csvs, num_splits, portion_val, num_epochs, learning_rate, test)
+
+    num_epochs = 40
+    out_csvs = ("results/cfar_train_results_6.csv", "results/cfar_test_same_results_6.csv", "results/cfar_test_new_results_6.csv")
+    confusion_csvs = ("results/cfar_train_confusion_6.csv", "results/cfar_test_same_confusion_6.csv", "results/cfar_test_new_confusion_6.csv")
+    process = processes.cfarProcessFinal
+    model = cnns.Cfar3dModelFinal
+    processInputs(process, in_csvs, root_dirs)
+    runCnn(model, num_channels, transform, in_csvs, root_dirs, out_csvs, confusion_csvs, num_splits, portion_val, num_epochs, learning_rate, test)
+
+    num_epochs = 80
+    out_csvs = ("results/ang_train_results_6.csv", "results/ang_test_same_results_6.csv", "results/ang_test_new_results_6.csv")
+    confusion_csvs = ("results/ang_train_confusion_6.csv", "results/ang_test_same_confusion_6.csv", "results/ang_test_new_confusion_6.csv")
+    process = processes.angleProcessFinal
+    model = cnns.AngleModelFinal
+    processInputs(process, in_csvs, root_dirs)
+    runCnn(model, num_channels, transform, in_csvs, root_dirs, out_csvs, confusion_csvs, num_splits, portion_val, num_epochs, learning_rate, test)
+
+    num_epochs = 80
+    out_csvs = ("results/bf_train_results_6.csv", "results/bf_test_same_results_6.csv", "results/bf_test_new_results_6.csv")
+    confusion_csvs = ("results/bf_train_confusion_6.csv", "results/bf_test_same_confusion_6.csv", "results/bf_test_new_confusion_6.csv")
+    process = processes.beamformingProcessFinal
+    model = cnns.BeamformingModelFinal
+    processInputs(process, in_csvs, root_dirs)
+    runCnn(model, num_channels, transform, in_csvs, root_dirs, out_csvs, confusion_csvs, num_splits, portion_val, num_epochs, learning_rate, test)
+
+    num_epochs = 40
+    out_csvs = ("results/md_train_results_6.csv", "results/md_test_same_results_6.csv", "results/md_test_new_results_6.csv")
+    confusion_csvs = ("results/md_train_confusion_6.csv", "results/md_test_same_confusion_6.csv", "results/md_test_new_confusion_6.csv")
     process = processes.microDopplerProcessFinal
     model = cnns.MicroDopplerModelFinal
     processInputs(process, in_csvs, root_dirs)
@@ -194,17 +417,17 @@ def runCnn(model_obj,
             testset_same = GestureDataset(in_csvs[1], root_dirs, transform=transform, labels=dataset.getLabels())
             same_loader = DataLoader(testset_same, batch_size=16, num_workers=4)
             same_loss, same_acc = evaluate(model, same_loader, criterion)
-            loc = len(test_new_results_df.rows())
-            test_new_results_df.loc[0, "loss"] = same_loss
-            test_new_results_df.loc[0, "acc"] = same_acc
+            loc = test_same_results_df.shape[0]
+            test_same_results_df.loc[loc, "loss"] = same_loss
+            test_same_results_df.loc[loc, "acc"] = same_acc
             confusion(model, same_loader, test_same_confusion_df)
         
             testset_new = GestureDataset(in_csvs[2], root_dirs, transform=transform, labels=dataset.getLabels())
             new_loader = DataLoader(testset_new, batch_size=16, num_workers=4)
             new_loss, new_acc = evaluate(model, new_loader, criterion)
-            loc = len(test_same_results_df.rows())
-            test_same_results_df.loc[0, "loss"] = new_loss
-            test_same_results_df.loc[0, "acc"] = new_acc
+            loc = test_new_results_df.shape[0]
+            test_new_results_df.loc[loc, "loss"] = new_loss
+            test_new_results_df.loc[loc, "acc"] = new_acc
             confusion(model, new_loader, test_new_confusion_df)
 
 
@@ -225,7 +448,7 @@ def runCnn(model_obj,
     if test:
         test_same_results_df.to_csv(out_csvs[1], index=False, header=True)
         test_same_confusion_df.to_csv(confusion_csvs[1], index=True, header=True)
-        test_same_results_df.to_csv(out_csvs[2], index=False, header=True)
+        test_new_results_df.to_csv(out_csvs[2], index=False, header=True)
         test_new_confusion_df.to_csv(confusion_csvs[2], index=True, header=True)
 
 def generateSplits(dataset, num_splits, portion_val):

@@ -1,0 +1,15 @@
+,non_gesture,swipe_down,virtual_slider_right,pinch_out_vertical,swipe_up,palm_release,virtual_knob_clockwise,pinch_out_horizontal,swipe_right,palm_grab,virtual_slider_left,virtual_knob_anticlockwise,virtual_tap,swipe_left
+non_gesture,132,3,1,2,0,0,2,8,0,0,0,2,0,0
+swipe_down,5,119,0,1,5,0,7,6,9,0,0,0,3,0
+virtual_slider_right,0,0,72,0,13,0,0,2,0,0,59,0,7,7
+pinch_out_vertical,4,1,0,117,0,2,8,11,0,1,0,16,0,0
+swipe_up,0,5,11,0,104,0,0,0,13,0,0,0,18,4
+palm_release,1,0,0,2,0,152,4,1,0,0,0,15,0,0
+virtual_knob_clockwise,4,9,0,7,0,2,106,3,2,1,0,26,0,0
+pinch_out_horizontal,13,8,0,14,0,1,5,117,0,0,0,2,0,0
+swipe_right,0,9,0,0,18,0,2,2,117,0,0,0,8,4
+palm_grab,0,0,0,3,0,1,5,0,0,141,0,5,0,0
+virtual_slider_left,1,0,59,0,1,0,0,0,0,0,95,0,2,2
+virtual_knob_anticlockwise,5,3,0,11,0,7,15,1,0,2,0,116,0,0
+virtual_tap,0,4,8,0,17,0,0,0,1,0,2,0,120,3
+swipe_left,0,0,10,0,8,0,0,0,2,0,3,0,4,128

@@ -466,7 +466,7 @@ def handLocateProcess3(data_cube, file_hdf5):
     max_per_frame = torch.amax(torch.abs(data_cube)[1:, ...], dim=(2, 3,), keepdim=True)
     
     # crop down to appropriate range interval:
-    data_cube = data_cube[..., 26:76, range_bin-2:range_bin+4]
+    data_cube = data_cube[..., 24:74, range_bin-2:range_bin+4]
 
 
         
@@ -528,15 +528,14 @@ def handLocateProcess4(data_cube, file_hdf5):
     range_bin = 9
     
     # crop down to appropriate range interval:
-    cfar = cfar[..., 26:76, range_bin-2:range_bin+4]
+    cfar = cfar[..., 24:74, range_bin-2:range_bin+4]
 
     # Select first channel for final run through CNN
     # also add the CNN channels dimension
     cfar = cfar[:, 0, :, :].unsqueeze(0)
     return cfar
 
-
-def rangeDopplerProcessFinal(data_cube, file_hdf5):
+def rangeDoppler2dProcessFinal(data_cube, file_hdf5):
     # compute range-doppler
     data_cube = radar.rangeDoppler(data_cube, torch.hann_window)
 
@@ -557,7 +556,52 @@ def rangeDopplerProcessFinal(data_cube, file_hdf5):
     data_cube = data_cube[1:, ...]
     
     # crop down to appropriate range interval:
-    data_cube = data_cube[..., 26:76, range_low:range_high]
+    data_cube = data_cube[..., 24:74, range_low:range_high]
+
+    # sum all frames into one
+    data_cube = torch.sum(data_cube, dim=(0, ), keepdim=True) / 19
+
+    data_cube = radar.todB(torch.abs(data_cube))
+    # max_per_frame = torch.amax(data_cube, dim=(2, 3), keepdim=True)
+    max_per_frame = torch.amax(data_cube)
+
+    # normalise around the calculated max and with the given dynamic range
+    dynamic_range = 40
+    data_cube = data_cube - max_per_frame + dynamic_range
+    data_cube = data_cube / dynamic_range
+
+    # Get rid of any additional values (mostly applicable to cutting out noise below 60 dB)
+    data_cube[data_cube < 0] = 0
+    data_cube[data_cube > 1] = 1
+
+    # Select first channel for final run through CNN
+    # also add the CNN channels dimension
+    data_cube = data_cube[0, 0, :, :].unsqueeze(0)
+    return data_cube
+
+
+def rangeDoppler3dProcessFinal(data_cube, file_hdf5, return_start_frame = False):
+    # compute range-doppler
+    data_cube = radar.rangeDoppler(data_cube, torch.hann_window)
+
+    data_cube = torch.sum(data_cube, dim=(1,), keepdim=True) / 12
+    # range res is useful for a few calculations down the line
+    range_low = 7
+    range_high = 13
+
+    # choose the best frames to analyse based on average power in the selected region of the range doppler map
+    best_frame = radar.bestFrame(data_cube, range_low, range_high)
+    start_frame = best_frame - 10
+    if start_frame < 0: start_frame = 0
+    if start_frame+20 > data_cube.shape[0]: start_frame = data_cube.shape[0] - 20
+    data_cube = data_cube[start_frame:start_frame+20, ...]
+
+    # remove clutter
+    data_cube = (data_cube - data_cube[0:1, ...])
+    data_cube = data_cube[1:, ...]
+    
+    # crop down to appropriate range interval:
+    data_cube = data_cube[..., 24:74, range_low:range_high]
 
 
     data_cube = radar.todB(torch.abs(data_cube))
@@ -573,17 +617,15 @@ def rangeDopplerProcessFinal(data_cube, file_hdf5):
     data_cube[data_cube < 0] = 0
     data_cube[data_cube > 1] = 1
 
-    # Final normalisation
-    # mean = data_cube.mean()
-    # std_dev = data_cube.std()
-    # data_cube = (data_cube - mean) / std_dev
-
     # Select first channel for final run through CNN
     # also add the CNN channels dimension
     data_cube = data_cube[:, 0, :, :].unsqueeze(0)
+
+    if return_start_frame:
+        return data_cube, (start_frame + 1)
     return data_cube
 
-def cfarProcessFinal(data_cube, file_hdf5):
+def cfarProcessFinal(data_cube, file_hdf5, return_start_frame = False):
     data_cube = radar.rangeDoppler(data_cube, torch.hann_window)
     
     # sum over channels to improve SNR
@@ -613,11 +655,13 @@ def cfarProcessFinal(data_cube, file_hdf5):
     cfar = radar.cfar(data_cube, kernel, 0.3)
     
     # crop down to appropriate range interval:
-    cfar = cfar[..., 26:76, range_low:range_high]
+    cfar = cfar[..., 24:74, range_low:range_high]
 
     # Select first channel for final run through CNN
     # also add the CNN channels dimension
     cfar = cfar[:, 0, :, :].unsqueeze(0)
+    if return_start_frame:
+        return cfar, start_frame + 1
     return cfar
 
 def beamformingProcessFinal(data_cube, file_hdf5):
@@ -644,7 +688,7 @@ def beamformingProcessFinal(data_cube, file_hdf5):
     # Determine angles to analyse
     num_angles = 16
     angle_spacing = 2
-    start_angle = - num_angles*angle_spacing/2
+    start_angle = - num_angles*angle_spacing/2 + 1
 
     # Compute angles in radians (torch.sin expects radians)
     angles = torch.arange(start_angle, start_angle + num_angles * angle_spacing, angle_spacing) * torch.pi / 180
@@ -674,7 +718,7 @@ def beamformingProcessFinal(data_cube, file_hdf5):
 
 
     # crop down to appropriate range interval:
-    data_cube = data_cube[..., 26:76, range_low:range_high]
+    data_cube = data_cube[..., 24:74, range_low:range_high]
 
     data_cube = radar.todB(torch.abs(data_cube))
     # max_per_frame = torch.amax(data_cube, dim=(2, 3), keepdim=True)
@@ -690,10 +734,6 @@ def beamformingProcessFinal(data_cube, file_hdf5):
     data_cube[data_cube < 0] = 0
     data_cube[data_cube > 1] = 1
 
-    # Final normalisation
-    # mean = data_cube.mean()
-    # std_dev = data_cube.std()
-    # data_cube = (data_cube - mean) / std_dev
     
     data_cube = data_cube[0, :, :, :].unsqueeze(0)
     # select first frame (i.e., only frame and channel given CFAR), then add "channel" dimension for pytorch
@@ -727,7 +767,7 @@ def angleProcessFinal(data_cube, file_hdf5):
     data_cube = torch.sum(data_cube, dim=(0,), keepdim=True) / 19
 
     # crop down to appropriate range interval:
-    data_cube = data_cube[..., 26:76, range_low:range_high]
+    data_cube = data_cube[..., 24:74, range_low:range_high]
 
     data_cube = radar.todB(torch.abs(data_cube))
     # max_per_frame = torch.amax(data_cube, dim=(2, 3), keepdim=True)
@@ -743,17 +783,13 @@ def angleProcessFinal(data_cube, file_hdf5):
     data_cube[data_cube < 0] = 0
     data_cube[data_cube > 1] = 1
 
-    # Final normalisation
-    # mean = data_cube.mean()
-    # std_dev = data_cube.std()
-    # data_cube = (data_cube - mean) / std_dev
     
     data_cube = data_cube[0, :, :, :].unsqueeze(0)
     # select first frame (i.e., only frame and channel given CFAR), then add "channel" dimension for pytorch
     return data_cube
 
 
-def microDopplerProcessFinal(data_cube, file_hdf5):
+def microDopplerProcessFinal(data_cube, file_hdf5, return_start_frame=False):
 
     # compute range-doppler
     data_cube = radar.rangeFft(data_cube, torch.hann_window)
@@ -793,10 +829,55 @@ def microDopplerProcessFinal(data_cube, file_hdf5):
     spectrogram[spectrogram < 0] = 0
     spectrogram[spectrogram > 1] = 1
 
-    # Final normalisation
-    # mean = spectrogram.mean()
-    # std_dev = spectrogram.std()
-    # spectrogram = (spectrogram - mean) / std_dev
     # also add the CNN channels dimension
     spectrogram = spectrogram.unsqueeze(0)
+
+    if return_start_frame:
+        return spectrogram, start_frame + 1
     return spectrogram
+
+def rangeDoppler3dFakeProcessFinal(data_cube, file_hdf5):
+    # compute range-doppler
+    data_cube = radar.rangeDoppler(data_cube, torch.hann_window)
+
+    data_cube = torch.sum(data_cube, dim=(1,), keepdim=True) / 12
+    # range res is useful for a few calculations down the line
+    range_low = 7
+    range_high = 13
+
+    # choose the best frames to analyse based on average power in the selected region of the range doppler map
+    best_frame = radar.bestFrame(data_cube, range_low, range_high)
+    start_frame = best_frame - 10
+    if start_frame < 0: start_frame = 0
+    if start_frame+20 > data_cube.shape[0]: start_frame = data_cube.shape[0] - 20
+    data_cube = data_cube[start_frame:start_frame+20, ...]
+
+    # remove clutter
+    data_cube = (data_cube - data_cube[0:1, ...])
+    data_cube = data_cube[1:, ...]
+    
+    # crop down to appropriate range interval:
+    data_cube = data_cube[..., 24:74, range_low:range_high]
+
+    # sum all frames into one
+    data_cube = torch.sum(data_cube, dim=(0, ), keepdim=True) / 19
+
+    data_cube = radar.todB(torch.abs(data_cube))
+    # max_per_frame = torch.amax(data_cube, dim=(2, 3), keepdim=True)
+    max_per_frame = torch.amax(data_cube)
+
+    # normalise around the calculated max and with the given dynamic range
+    dynamic_range = 40
+    data_cube = data_cube - max_per_frame + dynamic_range
+    data_cube = data_cube / dynamic_range
+
+    # Get rid of any additional values (mostly applicable to cutting out noise below 60 dB)
+    data_cube[data_cube < 0] = 0
+    data_cube[data_cube > 1] = 1
+
+    # Select first channel for final run through CNN
+    # also add the CNN channels dimension
+    data_cube = data_cube.expand(16, -1, -1, -1)
+    data_cube = data_cube[:, 0, :, :].unsqueeze(0)
+
+    return data_cube
