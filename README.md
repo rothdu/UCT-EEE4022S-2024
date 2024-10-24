@@ -10,4 +10,6 @@ The project explores hand gesture recognition using the TI AWR1843 FMCW radar.
 
 ## Navigating this repository
 
-Good luck.
+* Pipeline - contains the code used for the project, including signal processing code, machine learning code, and code to plot the various results nicely
+* Results - raw CSV files with the results from the various experiments
+* Configs - the config files (json and csv) used to configure the TI AWR1843BOOST radar
